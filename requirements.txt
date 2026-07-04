@@ -1,0 +1,5 @@
+streamlit
+groq
+requests
+beautifulsoup4
+pypdf2
