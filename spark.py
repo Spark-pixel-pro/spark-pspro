@@ -3,7 +3,6 @@ import streamlit as st
 from groq import Groq
 import requests
 from bs4 import BeautifulSoup
-import PyPDF2
 import smtplib
 import json
 import os
@@ -67,8 +66,10 @@ def wyslij_maila(imie, telefon, email_klienta):
         server.login(GMAIL_EMAIL, GMAIL_HASLO)
         server.send_message(msg)
         server.quit()
-    except:
-        pass
+        return True
+    except Exception as e:
+        st.error("Blad maila: " + str(e))
+        return False
 
 def zapisz_kontakt(dane):
     plik = "kontakty.json"
@@ -83,33 +84,18 @@ def zapisz_kontakt(dane):
 client = Groq(api_key=GROQ_KEY)
 wiedza = czytaj_strone("https://ps-pro.pl/")
 
+SYSTEM_PROMPT = (
+    "Jestes Spark, asystent firmy PS Pro Solutions. "
+    "Firma zajmuje sie swiadectwami energetycznymi, audytami i dokumentacja budowlana. "
+    "NAJWAZNIEJSZA ZASADA: W kazdej odpowiedzi ZAWSZE prosic o dane kontaktowe: imie, telefon, email. "
+    "Gdy uzytkownik poda imie I telefon I email — natychmiast napisz: KONTAKT|imie|telefon|email "
+    "Przyklad: jesli ktos pyta o cene, odpowiedz krotko i napisz: "
+    "Aby przygotowac wycene, podaj imie, numer telefonu i email — oddzwonimy w ciagu 24h! "
+    "Wiedza o firmie: " + wiedza[:4000]
+)
+
 def czysta_historia(historia):
     return [{"role": m["role"], "content": m["content"]} for m in historia]
-
-def spark_central(pytanie, historia):
-    routing = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": "Odpowiedz TYLKO jednym slowem: SPRZEDAZ, WIEDZA, HR lub OGOLNE"},
-            {"role": "user", "content": pytanie}
-        ]
-    ).choices[0].message.content.strip().upper()
-
-    if "SPRZEDAZ" in routing:
-        system = ("Jestes Agent Sprzedazy PS Pro Solutions. "
-                  "Twoj cel to zebranie danych kontaktowych. "
-                  "Schemat: 1) Krotko odpowiedz 2) Zapytaj o imie telefon i email "
-                  "3) Gdy klient poda dane napisz: KONTAKT|imie|telefon|email "
-                  "Wiedza: " + wiedza[:3000])
-    elif "HR" in routing:
-        system = "Jestes Agent HR PS Pro Solutions. Znasz procedury i rekrutacje."
-    else:
-        system = "Jestes Agent Wiedzy PS Pro Solutions. Wyjasniasz uslugi firmy. Wiedza: " + wiedza[3000:6000]
-
-    return client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": system}] + czysta_historia(historia) + [{"role": "user", "content": pytanie}]
-    ).choices[0].message.content
 
 if "historia" not in st.session_state:
     st.session_state.historia = []
@@ -124,19 +110,28 @@ if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
     with st.chat_message("user"):
         st.write(pytanie)
     st.session_state.historia.append({"role": "user", "content": pytanie})
+    
     with st.chat_message("assistant"):
         with st.spinner(""):
-            tekst = spark_central(pytanie, st.session_state.historia)
+            odpowiedz = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + czysta_historia(st.session_state.historia)
+            )
+            tekst = odpowiedz.choices[0].message.content
+            
             if "KONTAKT|" in tekst and not st.session_state.kontakt_zebrany:
                 czesci = tekst.split("|")
                 if len(czesci) >= 4:
-                    imie = czesci[1]
-                    telefon = czesci[2]
-                    email_k = czesci[3].split()[0]
-                    wyslij_maila(imie, telefon, email_k)
+                    imie = czesci[1].strip()
+                    telefon = czesci[2].strip()
+                    email_k = czesci[3].strip().split()[0]
+                    sukces = wyslij_maila(imie, telefon, email_k)
                     zapisz_kontakt({"imie": imie, "telefon": telefon, "email": email_k, "data": datetime.now().strftime("%Y-%m-%d %H:%M")})
                     st.session_state.kontakt_zebrany = True
-                    tekst = "Dziekuje! Zapisalem Twoje dane. Nasz zespol skontaktuje sie wkrotce!"
-                    st.success("Lead zapisany!")
+                    tekst = "Dziekuje " + imie + "! Zapisalem Twoje dane. Nasz zespol skontaktuje sie wkrotce na numer " + telefon + "!"
+                    if sukces:
+                        st.success("Lead zapisany!")
+            
             st.write(tekst)
+    
     st.session_state.historia.append({"role": "assistant", "content": tekst})
