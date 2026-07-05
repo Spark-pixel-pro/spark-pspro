@@ -9,10 +9,15 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from supabase import create_client
 
 GROQ_KEY = st.secrets["GROQ_API_KEY"]
 GMAIL_EMAIL = st.secrets["GMAIL_EMAIL"]
 GMAIL_HASLO = st.secrets["GMAIL_HASLO"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="Spark - PS Pro Solutions", layout="centered")
 
@@ -51,14 +56,46 @@ def czytaj_strone(url):
     soup = BeautifulSoup(r.text, "html.parser")
     return soup.get_text(separator=" ", strip=True)[:6000]
 
-def wyslij_maila(imie, telefon, email_klienta):
+def znajdz_klienta(email):
+    try:
+        wynik = supabase.table("klienci").select("*").eq("email", email).execute()
+        if wynik.data:
+            return wynik.data[0]
+    except:
+        pass
+    return None
+
+def zapisz_klienta(imie, telefon, email, temat):
+    try:
+        istniejacy = znajdz_klienta(email)
+        if istniejacy:
+            supabase.table("klienci").update({
+                "ostatnia_wizyta": datetime.now().isoformat(),
+                "liczba_wizyt": istniejacy["liczba_wizyt"] + 1,
+                "zainteresowania": temat
+            }).eq("email", email).execute()
+        else:
+            supabase.table("klienci").insert({
+                "imie": imie,
+                "telefon": telefon,
+                "email": email,
+                "zainteresowania": temat,
+                "historia": "Pierwsza wizyta"
+            }).execute()
+    except Exception as e:
+        st.error("Blad bazy: " + str(e))
+
+def wyslij_maila(imie, telefon, email_klienta, powrot=False):
     try:
         msg = MIMEMultipart()
         msg["From"] = GMAIL_EMAIL
         msg["To"] = GMAIL_EMAIL
-        msg["Subject"] = "Nowy lead ze Sparka!"
+        if powrot:
+            msg["Subject"] = "Powracajacy klient ze Sparka!"
+        else:
+            msg["Subject"] = "Nowy lead ze Sparka!"
         data = datetime.now().strftime("%Y-%m-%d %H:%M")
-        linie = ["Nowy klient!", "", "Imie: " + imie, "Telefon: " + telefon, "Email: " + email_klienta, "Data: " + data, "", "Skontaktuj sie!"]
+        linie = ["Klient:", "", "Imie: " + imie, "Telefon: " + telefon, "Email: " + email_klienta, "Data: " + data, "", "Skontaktuj sie!"]
         tresc = chr(10).join(linie)
         msg.attach(MIMEText(tresc, "plain"))
         server = smtplib.SMTP("smtp.gmail.com", 587)
@@ -67,19 +104,8 @@ def wyslij_maila(imie, telefon, email_klienta):
         server.send_message(msg)
         server.quit()
         return True
-    except Exception as e:
-        st.error("Blad maila: " + str(e))
+    except:
         return False
-
-def zapisz_kontakt(dane):
-    plik = "kontakty.json"
-    kontakty = []
-    if os.path.exists(plik):
-        with open(plik, "r") as f:
-            kontakty = json.load(f)
-    kontakty.append(dane)
-    with open(plik, "w") as f:
-        json.dump(kontakty, f, ensure_ascii=False, indent=2)
 
 client = Groq(api_key=GROQ_KEY)
 wiedza = czytaj_strone("https://ps-pro.pl/")
@@ -88,9 +114,7 @@ SYSTEM_PROMPT = (
     "Jestes Spark, asystent firmy PS Pro Solutions. "
     "Firma zajmuje sie swiadectwami energetycznymi, audytami i dokumentacja budowlana. "
     "NAJWAZNIEJSZA ZASADA: W kazdej odpowiedzi ZAWSZE prosic o dane kontaktowe: imie, telefon, email. "
-    "Gdy uzytkownik poda imie I telefon I email — natychmiast napisz: KONTAKT|imie|telefon|email "
-    "Przyklad: jesli ktos pyta o cene, odpowiedz krotko i napisz: "
-    "Aby przygotowac wycene, podaj imie, numer telefonu i email — oddzwonimy w ciagu 24h! "
+    "Gdy uzytkownik poda imie I telefon I email napisz: KONTAKT|imie|telefon|email "
     "Wiedza o firmie: " + wiedza[:4000]
 )
 
@@ -101,6 +125,8 @@ if "historia" not in st.session_state:
     st.session_state.historia = []
 if "kontakt_zebrany" not in st.session_state:
     st.session_state.kontakt_zebrany = False
+if "klient_info" not in st.session_state:
+    st.session_state.klient_info = None
 
 for msg in st.session_state.historia:
     with st.chat_message(msg["role"]):
@@ -110,7 +136,7 @@ if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
     with st.chat_message("user"):
         st.write(pytanie)
     st.session_state.historia.append({"role": "user", "content": pytanie})
-    
+
     with st.chat_message("assistant"):
         with st.spinner(""):
             odpowiedz = client.chat.completions.create(
@@ -118,20 +144,30 @@ if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + czysta_historia(st.session_state.historia)
             )
             tekst = odpowiedz.choices[0].message.content
-            
+
             if "KONTAKT|" in tekst and not st.session_state.kontakt_zebrany:
                 czesci = tekst.split("|")
                 if len(czesci) >= 4:
                     imie = czesci[1].strip()
                     telefon = czesci[2].strip()
                     email_k = czesci[3].strip().split()[0]
-                    sukces = wyslij_maila(imie, telefon, email_k)
-                    zapisz_kontakt({"imie": imie, "telefon": telefon, "email": email_k, "data": datetime.now().strftime("%Y-%m-%d %H:%M")})
+
+                    istniejacy = znajdz_klienta(email_k)
+                    powrot = istniejacy is not None
+
+                    zapisz_klienta(imie, telefon, email_k, pytanie)
+                    wyslij_maila(imie, telefon, email_k, powrot)
                     st.session_state.kontakt_zebrany = True
-                    tekst = "Dziekuje " + imie + "! Zapisalem Twoje dane. Nasz zespol skontaktuje sie wkrotce na numer " + telefon + "!"
-                    if sukces:
-                        st.success("Lead zapisany!")
-            
+                    st.session_state.klient_info = istniejacy
+
+                    if powrot:
+                        wizyty = istniejacy["liczba_wizyt"] + 1
+                        tekst = "Witaj z powrotem " + imie + "! To juz Twoja " + str(wizyty) + ". wizyta. Pamietam Cie! Jak moge pomoc tym razem?"
+                        st.info("Powracajacy klient!")
+                    else:
+                        tekst = "Dziekuje " + imie + "! Zapisalem Twoje dane. Nasz zespol skontaktuje sie wkrotce!"
+                        st.success("Nowy lead zapisany!")
+
             st.write(tekst)
-    
+
     st.session_state.historia.append({"role": "assistant", "content": tekst})
