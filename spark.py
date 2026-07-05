@@ -4,12 +4,14 @@ from groq import Groq
 import requests
 from bs4 import BeautifulSoup
 import smtplib
-import json
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from supabase import create_client
+import base64
+from gtts import gTTS
+import tempfile
 
 GROQ_KEY = st.secrets["GROQ_API_KEY"]
 GMAIL_EMAIL = st.secrets["GMAIL_EMAIL"]
@@ -39,16 +41,33 @@ st.markdown("""
     .stChatInputContainer textarea { color: #FFFFFF !important; background-color: transparent !important; }
     #MainMenu, header, footer { visibility: hidden; }
     .block-container { padding-top: 0 !important; }
+    .mic-btn { background: #FFD600; border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 24px; cursor: pointer; margin: 10px auto; display: block; }
+    .mic-btn:hover { background: #FFC000; }
+    .mic-btn.recording { background: #FF4444; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 </style>
 <div class="header-wrap">
     <div class="header-logo"><img src="https://ps-pro.pl/images/logo.svg" alt="PS PRO"></div>
     <div class="header-text">
         <div class="title">SPARK</div>
-        <div class="subtitle">ASYSTENT PS PRO SOLUTIONS</div>
+        <div class="subtitle">ASYSTENT GŁOSOWY PS PRO SOLUTIONS</div>
     </div>
 </div>
 <hr class="divider">
 """, unsafe_allow_html=True)
+
+def tekst_na_glos(tekst):
+    try:
+        tts = gTTS(text=tekst[:500], lang="pl", slow=False)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            tts.save(f.name)
+            with open(f.name, "rb") as audio:
+                audio_bytes = audio.read()
+        audio_b64 = base64.b64encode(audio_bytes).decode()
+        audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio>'
+        st.markdown(audio_html, unsafe_allow_html=True)
+    except:
+        pass
 
 @st.cache_data
 def czytaj_strone(url):
@@ -82,57 +101,115 @@ def zapisz_klienta(imie, telefon, email, temat):
                 "zainteresowania": temat,
                 "historia": "Pierwsza wizyta"
             }).execute()
-    except Exception as e:
-        st.error("Blad bazy: " + str(e))
+    except:
+        pass
 
 def wyslij_maila(imie, telefon, email_klienta, powrot=False):
     try:
         msg = MIMEMultipart()
         msg["From"] = GMAIL_EMAIL
         msg["To"] = GMAIL_EMAIL
-        if powrot:
-            msg["Subject"] = "Powracajacy klient ze Sparka!"
-        else:
-            msg["Subject"] = "Nowy lead ze Sparka!"
+        msg["Subject"] = "Powracajacy klient!" if powrot else "Nowy lead ze Sparka!"
         data = datetime.now().strftime("%Y-%m-%d %H:%M")
-        linie = ["Klient:", "", "Imie: " + imie, "Telefon: " + telefon, "Email: " + email_klienta, "Data: " + data, "", "Skontaktuj sie!"]
-        tresc = chr(10).join(linie)
-        msg.attach(MIMEText(tresc, "plain"))
+        linie = ["Klient:", "", "Imie: " + imie, "Telefon: " + telefon, "Email: " + email_klienta, "Data: " + data]
+        msg.attach(MIMEText(chr(10).join(linie), "plain"))
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(GMAIL_EMAIL, GMAIL_HASLO)
         server.send_message(msg)
         server.quit()
-        return True
     except:
-        return False
+        pass
 
 client = Groq(api_key=GROQ_KEY)
 wiedza = czytaj_strone("https://ps-pro.pl/")
 
 SYSTEM_PROMPT = (
-    "Jestes Spark, asystent firmy PS Pro Solutions. "
-    "Firma zajmuje sie swiadectwami energetycznymi, audytami i dokumentacja budowlana. "
-    "NAJWAZNIEJSZA ZASADA: W kazdej odpowiedzi ZAWSZE prosic o dane kontaktowe: imie, telefon, email. "
-    "Gdy uzytkownik poda imie I telefon I email napisz: KONTAKT|imie|telefon|email "
-    "Wiedza o firmie: " + wiedza[:4000]
+    "Jestes Spark, glosowy asystent firmy PS Pro Solutions. "
+    "Odpowiadaj KROTKO — maksymalnie 2-3 zdania bo Twoja odpowiedz bedzie czytana na glos. "
+    "Firma zajmuje sie swiadectwami energetycznymi i audytami. "
+    "ZAWSZE pros o dane kontaktowe: imie, telefon, email. "
+    "Gdy klient poda imie I telefon I email napisz: KONTAKT|imie|telefon|email "
+    "Wiedza: " + wiedza[:3000]
 )
 
 def czysta_historia(historia):
     return [{"role": m["role"], "content": m["content"]} for m in historia]
 
+# Komponent głosowy
+st.components.v1.html("""
+<div style="text-align: center; padding: 10px;">
+    <button id="micBtn" onclick="startListening()" style="
+        background: #FFD600; border: none; border-radius: 50%;
+        width: 70px; height: 70px; font-size: 30px; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255,214,0,0.4);">
+        🎤
+    </button>
+    <p id="status" style="color: #888; font-size: 12px; margin-top: 8px;">Kliknij żeby mówić</p>
+    <p id="transcript" style="color: #FFD600; font-size: 14px; min-height: 20px;"></p>
+</div>
+
+<script>
+let recognition;
+let isListening = false;
+
+function startListening() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        document.getElementById('status').textContent = 'Twoja przeglądarka nie wspiera głosu. Użyj Chrome.';
+        return;
+    }
+    
+    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'pl-PL';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    
+    document.getElementById('micBtn').textContent = '🔴';
+    document.getElementById('micBtn').style.background = '#FF4444';
+    document.getElementById('status').textContent = 'Słucham...';
+    
+    recognition.onresult = function(event) {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
+        document.getElementById('transcript').textContent = transcript;
+        
+        if (event.results[event.results.length-1].isFinal) {
+            document.getElementById('micBtn').textContent = '🎤';
+            document.getElementById('micBtn').style.background = '#FFD600';
+            document.getElementById('status').textContent = 'Przetwarzam...';
+            
+            window.parent.postMessage({type: 'SPEECH_RESULT', text: transcript}, '*');
+        }
+    };
+    
+    recognition.onerror = function() {
+        document.getElementById('micBtn').textContent = '🎤';
+        document.getElementById('micBtn').style.background = '#FFD600';
+        document.getElementById('status').textContent = 'Kliknij żeby mówić';
+    };
+    
+    recognition.onend = function() {
+        document.getElementById('micBtn').textContent = '🎤';
+        document.getElementById('micBtn').style.background = '#FFD600';
+    };
+    
+    recognition.start();
+}
+</script>
+""", height=150)
+
 if "historia" not in st.session_state:
     st.session_state.historia = []
 if "kontakt_zebrany" not in st.session_state:
     st.session_state.kontakt_zebrany = False
-if "klient_info" not in st.session_state:
-    st.session_state.klient_info = None
 
 for msg in st.session_state.historia:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
+if pytanie := st.chat_input("Napisz lub użyj mikrofonu..."):
     with st.chat_message("user"):
         st.write(pytanie)
     st.session_state.historia.append({"role": "user", "content": pytanie})
@@ -151,23 +228,17 @@ if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
                     imie = czesci[1].strip()
                     telefon = czesci[2].strip()
                     email_k = czesci[3].strip().split()[0]
-
                     istniejacy = znajdz_klienta(email_k)
-                    powrot = istniejacy is not None
-
                     zapisz_klienta(imie, telefon, email_k, pytanie)
-                    wyslij_maila(imie, telefon, email_k, powrot)
+                    wyslij_maila(imie, telefon, email_k, istniejacy is not None)
                     st.session_state.kontakt_zebrany = True
-                    st.session_state.klient_info = istniejacy
-
-                    if powrot:
-                        wizyty = istniejacy["liczba_wizyt"] + 1
-                        tekst = "Witaj z powrotem " + imie + "! To juz Twoja " + str(wizyty) + ". wizyta. Pamietam Cie! Jak moge pomoc tym razem?"
-                        st.info("Powracajacy klient!")
+                    if istniejacy:
+                        tekst = "Witaj z powrotem " + imie + "! Jak moge pomoc?"
                     else:
-                        tekst = "Dziekuje " + imie + "! Zapisalem Twoje dane. Nasz zespol skontaktuje sie wkrotce!"
-                        st.success("Nowy lead zapisany!")
+                        tekst = "Dziekuje " + imie + "! Oddzwonimy wkrotce!"
+                    st.success("Lead zapisany!")
 
+            tekst_na_glos(tekst)
             st.write(tekst)
 
     st.session_state.historia.append({"role": "assistant", "content": tekst})
