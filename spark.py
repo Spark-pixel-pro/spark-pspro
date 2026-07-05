@@ -1,4 +1,3 @@
-
 import streamlit as st
 from groq import Groq
 import requests
@@ -8,9 +7,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from supabase import create_client
-from gtts import gTTS
-import base64
-import tempfile
 import os
 
 GROQ_KEY = st.secrets["GROQ_API_KEY"]
@@ -61,22 +57,6 @@ def czytaj_strone(url):
         return soup.get_text(separator=" ", strip=True)[:5000]
     except:
         return ""
-
-def tekst_na_glos(tekst):
-    try:
-        czysty = tekst[:400].replace("KONTAKT|", "").split("|")[0]
-        tts = gTTS(text=czysty, lang="pl", slow=False)
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        tts.save(tmp.name)
-        with open(tmp.name, "rb") as f:
-            audio_b64 = base64.b64encode(f.read()).decode()
-        os.unlink(tmp.name)
-        st.markdown(
-            f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio>',
-            unsafe_allow_html=True
-        )
-    except:
-        pass
 
 def znajdz_klienta(email):
     try:
@@ -136,128 +116,22 @@ SYSTEM_PROMPT = (
 )
 
 def czysta_historia(historia):
-    return [{"role": m["role"], "content": m["content"]} for m in historia]
+    return [{"role": m["role"], "content": m["content"]} for m in historia if "role" in m and "content" in m]
 
 if "historia" not in st.session_state:
     st.session_state.historia = []
 if "kontakt_zebrany" not in st.session_state:
     st.session_state.kontakt_zebrany = False
-if "glos_tekst" not in st.session_state:
-    st.session_state.glos_tekst = ""
 
-# Komponent glosowy
-wynik_glosu = st.components.v1.html("""
-<!DOCTYPE html>
-<html>
-<body style="margin:0; background:transparent;">
-<div style="text-align:center; padding:10px;">
-    <button id="btn" onclick="toggle()" style="
-        width:65px; height:65px; border-radius:50%; border:none;
-        background:#FFD600; font-size:28px; cursor:pointer;
-        box-shadow:0 4px 15px rgba(255,214,0,0.3);">🎤</button>
-    <p id="info" style="color:#888; font-size:12px; margin:6px 0;">Kliknij i mów po polsku</p>
-    <p id="txt" style="color:#FFD600; font-size:13px; min-height:18px; font-weight:500;"></p>
-    <input id="hidden" type="hidden" value="">
-</div>
-<script>
-let rec, active = false;
-
-function toggle() {
-    if (active) { rec.stop(); return; }
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-        document.getElementById('info').textContent = 'Uzyj Chrome na komputerze';
-        return;
-    }
-    rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    rec.lang = 'pl-PL';
-    rec.continuous = false;
-    rec.interimResults = true;
-    active = true;
-    document.getElementById('btn').textContent = '🔴';
-    document.getElementById('btn').style.background = '#FF4444';
-    document.getElementById('info').textContent = 'Slucha...';
-
-    rec.onresult = e => {
-        let t = '';
-        for (let i = e.resultIndex; i < e.results.length; i++)
-            t += e.results[i][0].transcript;
-        document.getElementById('txt').textContent = t;
-        if (e.results[e.results.length-1].isFinal) {
-            document.getElementById('hidden').value = t;
-            Streamlit.setComponentValue(t);
-        }
-    };
-
-    rec.onend = () => {
-        active = false;
-        document.getElementById('btn').textContent = '🎤';
-        document.getElementById('btn').style.background = '#FFD600';
-        document.getElementById('info').textContent = 'Kliknij i mow po polsku';
-    };
-
-    rec.onerror = () => {
-        active = false;
-        document.getElementById('btn').textContent = '🎤';
-        document.getElementById('btn').style.background = '#FFD600';
-        document.getElementById('info').textContent = 'Blad - sprobuj ponownie';
-    };
-
-    rec.start();
-}
-</script>
-</body>
-</html>
-""", height=130)
-
-# Obsługa głosu
-if wynik_glosu and wynik_glosu != st.session_state.glos_tekst:
-    st.session_state.glos_tekst = wynik_glosu
-    pytanie = wynik_glosu
-    
-    with st.chat_message("user"):
-        st.write(pytanie)
-    st.session_state.historia.append({"role": "user", "content": pytanie})
-    
-    with st.chat_message("assistant"):
-        with st.spinner(""):
-            odp = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + czysta_historia(st.session_state.historia)
-            )
-            tekst = odp.choices[0].message.content
-            
-            if "KONTAKT|" in tekst and not st.session_state.kontakt_zebrany:
-                czesci = tekst.split("|")
-                if len(czesci) >= 4:
-                    imie = czesci[1].strip()
-                    telefon = czesci[2].strip()
-                    email_k = czesci[3].strip().split()[0]
-                    istniejacy = znajdz_klienta(email_k)
-                    zapisz_klienta(imie, telefon, email_k, pytanie)
-                    wyslij_maila(imie, telefon, email_k, istniejacy is not None)
-                    st.session_state.kontakt_zebrany = True
-                    if istniejacy:
-                        tekst = "Witaj z powrotem " + imie + "! Jak moge pomoc?"
-                    else:
-                        tekst = "Dziekuje " + imie + "! Oddzwonimy wkrotce na numer " + telefon + "!"
-                    st.success("Lead zapisany!")
-            
-            tekst_na_glos(tekst)
-            st.write(tekst)
-    
-    st.session_state.historia.append({"role": "assistant", "content": tekst})
-
-# Historia czatu
 for msg in st.session_state.historia:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Chat tekstowy
-if pytanie := st.chat_input("Napisz wiadomosc..."):
+if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
     with st.chat_message("user"):
         st.write(pytanie)
     st.session_state.historia.append({"role": "user", "content": pytanie})
-    
+
     with st.chat_message("assistant"):
         with st.spinner(""):
             odp = client.chat.completions.create(
@@ -265,7 +139,7 @@ if pytanie := st.chat_input("Napisz wiadomosc..."):
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + czysta_historia(st.session_state.historia)
             )
             tekst = odp.choices[0].message.content
-            
+
             if "KONTAKT|" in tekst and not st.session_state.kontakt_zebrany:
                 czesci = tekst.split("|")
                 if len(czesci) >= 4:
@@ -281,8 +155,7 @@ if pytanie := st.chat_input("Napisz wiadomosc..."):
                     else:
                         tekst = "Dziekuje " + imie + "! Oddzwonimy wkrotce!"
                     st.success("Lead zapisany!")
-            
-            tekst_na_glos(tekst)
+
             st.write(tekst)
-    
+
     st.session_state.historia.append({"role": "assistant", "content": tekst})
