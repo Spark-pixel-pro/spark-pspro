@@ -3,3 +3,4 @@ groq
 requests
 beautifulsoup4
 pypdf2
+supabase
