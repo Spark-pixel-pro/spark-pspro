@@ -215,7 +215,7 @@ if wynik_glosu and wynik_glosu != st.session_state.glos_tekst:
     pytanie = wynik_glosu
     
     with st.chat_message("user"):
-        st.write("🎤 " + pytanie)
+        st.write(pytanie)
     st.session_state.historia.append({"role": "user", "content": pytanie})
     
     with st.chat_message("assistant"):
