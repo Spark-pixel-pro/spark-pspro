@@ -5,3 +5,8 @@ beautifulsoup4
 pypdf2
 supabase
 gtts
+google-api-python-client
+google-auth
+google-auth-httplib2
+python-docx
+sentence-transformers
