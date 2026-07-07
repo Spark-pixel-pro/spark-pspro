@@ -63,8 +63,8 @@ def download_file(service, file_id):
     return buffer
 
 
-def export_google_doc(service, file_id):
-    request = service.files().export_media(fileId=file_id, mimeType="text/plain")
+def export_google_file(service, file_id, mime_type):
+    request = service.files().export_media(fileId=file_id, mimeType=mime_type)
     buffer = io.BytesIO()
     downloader = MediaIoBaseDownload(buffer, request)
     done = False
@@ -80,19 +80,24 @@ def extract_text(service, file):
 
     try:
         if mime == "application/vnd.google-apps.document":
-            return export_google_doc(service, file["id"])
+            return export_google_file(service, file["id"], "text/plain")
+
+        elif mime == "application/vnd.google-apps.spreadsheet":
+            return export_google_file(service, file["id"], "text/csv")
+
+        elif mime == "application/vnd.google-apps.presentation":
+            return export_google_file(service, file["id"], "text/plain")
 
         elif mime == "application/pdf":
             buffer = download_file(service, file["id"])
             reader = PyPDF2.PdfReader(buffer)
             text = ""
             for page in reader.pages:
-                text += page.extract_text() or ""
+                page_text = page.extract_text() or ""
+                text += page_text
             return text
 
-        elif mime in [
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ]:
+        elif mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             buffer = download_file(service, file["id"])
             document = docx.Document(buffer)
             return "\n".join([p.text for p in document.paragraphs])
@@ -102,7 +107,8 @@ def extract_text(service, file):
             return buffer.read().decode("utf-8", errors="ignore")
 
         else:
-            return None  # nieobsługiwany typ pliku
+            st.warning(f"⚠️ Pomijam '{name}' — nieobsługiwany typ pliku: {mime}")
+            return None
 
     except Exception as e:
         st.warning(f"⚠️ Nie udało się przetworzyć pliku '{name}': {e}")
@@ -138,7 +144,9 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
         text = extract_text(service, file)
 
         if text and text.strip():
-            # usuń stare fragmenty tego pliku, jeśli już były zsynchronizowane
+            char_count = len(text.strip())
+            st.write(f"✅ **{file['name']}** — wyciągnięto {char_count} znaków tekstu")
+
             supabase.table("wiedza").delete().eq("zrodlo", file["name"]).execute()
 
             chunks = chunk_text(text)
@@ -150,6 +158,8 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
                     "embedding": embedding
                 }).execute()
                 total_chunks += 1
+        else:
+            st.write(f"⚠️ **{file['name']}** — brak wyciągniętego tekstu (0 znaków)")
 
         progress.progress((idx + 1) / len(files))
 
