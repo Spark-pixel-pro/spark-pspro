@@ -8,6 +8,7 @@ from pdf2image import convert_from_bytes
 from PIL import Image
 from odf.opendocument import load as odf_load
 from odf import text as odf_text
+from odf.table import TableCell
 from odf.teletype import extractText
 import pytesseract
 import PyPDF2
@@ -124,6 +125,11 @@ def extract_odt_text(buffer):
         if t.strip():
             all_text.append(t)
 
+    for cell in doc.getElementsByType(TableCell):
+        t = extractText(cell)
+        if t.strip():
+            all_text.append(t)
+
     return "\n".join(all_text)
 
 
@@ -208,4 +214,43 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
     total_chunks = 0
 
     for idx, file in enumerate(files):
-        source_label = f"{file.get('folder_path', '')}/{file['name']}" if
+        source_label = f"{file.get('folder_path', '')}/{file['name']}" if file.get('folder_path') else file['name']
+        status.text(f"Przetwarzam: {source_label} ({idx + 1}/{len(files)})")
+
+        text = extract_text(service, file)
+
+        if text and text.strip():
+            char_count = len(text.strip())
+            st.write(f"✅ **{source_label}** — wyciągnięto {char_count} znaków tekstu")
+
+            supabase.table("wiedza").delete().eq("zrodlo", source_label).execute()
+
+            chunks = chunk_text(text)
+            for chunk in chunks:
+                embedding = model.encode(chunk).tolist()
+                supabase.table("wiedza").insert({
+                    "zrodlo": source_label,
+                    "fragment": chunk,
+                    "embedding": embedding
+                }).execute()
+                total_chunks += 1
+        else:
+            st.write(f"⚠️ **{source_label}** — brak wyciągniętego tekstu (0 znaków)")
+
+        progress.progress((idx + 1) / len(files))
+
+    status.text("")
+    st.success(f"✅ Gotowe! Przetworzono {len(files)} plików, zapisano {total_chunks} fragmentów wiedzy.")
+
+st.divider()
+st.subheader("📊 Aktualny stan bazy wiedzy")
+
+response = supabase.table("wiedza").select("zrodlo").execute()
+if response.data:
+    unique_sources = set(row["zrodlo"] for row in response.data)
+    st.write(f"**{len(unique_sources)}** zsynchronizowanych plików, **{len(response.data)}** fragmentów wiedzy w bazie.")
+    with st.expander("Zobacz listę plików"):
+        for source in sorted(unique_sources):
+            st.write(f"- {source}")
+else:
+    st.write("Baza wiedzy jest jeszcze pusta — kliknij 'Synchronizuj teraz' powyżej.")
