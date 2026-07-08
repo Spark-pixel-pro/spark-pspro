@@ -36,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR, .odt, stare .doc i .xls.")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR, .odt, stare .doc, .xls i .xlsx.")
 
 
 @st.cache_resource
@@ -164,6 +164,16 @@ def extract_old_xls_text(xls_bytes):
     return "\n".join(all_text)
 
 
+def extract_xlsx_text(xlsx_bytes):
+    all_text = []
+    excel_file = pd.ExcelFile(io.BytesIO(xlsx_bytes), engine="openpyxl")
+    for sheet_name in excel_file.sheet_names:
+        df = excel_file.parse(sheet_name, header=None)
+        all_text.append(f"[Arkusz: {sheet_name}]")
+        all_text.append(df.to_string(index=False, header=False))
+    return "\n".join(all_text)
+
+
 def extract_text(service, file):
     mime = file["mimeType"]
     name = file["name"]
@@ -206,6 +216,10 @@ def extract_text(service, file):
         elif mime == "application/vnd.ms-excel":
             buffer = download_file(service, file["id"])
             return extract_old_xls_text(buffer.read())
+
+        elif mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            buffer = download_file(service, file["id"])
+            return extract_xlsx_text(buffer.read())
 
         elif mime == "application/vnd.oasis.opendocument.text":
             buffer = download_file(service, file["id"])
