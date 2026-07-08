@@ -16,3 +16,4 @@ Pillow
 odfpy
 xlrd
 pandas
+openpyxl
