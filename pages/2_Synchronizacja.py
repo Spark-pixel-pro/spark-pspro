@@ -4,6 +4,9 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from sentence_transformers import SentenceTransformer
+from pdf2image import convert_from_bytes
+from PIL import Image
+import pytesseract
 import PyPDF2
 import docx
 import io
@@ -25,7 +28,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR dla skanów i zdjęć.")
 
 
 @st.cache_resource
@@ -85,6 +88,20 @@ def export_google_file(service, file_id, mime_type):
     return buffer.read().decode("utf-8", errors="ignore")
 
 
+def ocr_image_bytes(image_bytes):
+    image = Image.open(io.BytesIO(image_bytes))
+    text = pytesseract.image_to_string(image, lang="pol")
+    return text
+
+
+def ocr_pdf_bytes(pdf_bytes):
+    pages = convert_from_bytes(pdf_bytes, dpi=200)
+    full_text = ""
+    for page_image in pages:
+        full_text += pytesseract.image_to_string(page_image, lang="pol") + "\n"
+    return full_text
+
+
 def extract_text(service, file):
     mime = file["mimeType"]
     name = file["name"]
@@ -101,12 +118,19 @@ def extract_text(service, file):
 
         elif mime == "application/pdf":
             buffer = download_file(service, file["id"])
-            reader = PyPDF2.PdfReader(buffer)
+            pdf_bytes = buffer.read()
+
+            reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
             text = ""
             for page in reader.pages:
                 page_text = page.extract_text() or ""
                 text += page_text
-            return text
+
+            if text.strip():
+                return text
+            else:
+                st.write(f"🔍 '{name}' wygląda na skan — uruchamiam OCR (to potrwa dłużej)...")
+                return ocr_pdf_bytes(pdf_bytes)
 
         elif mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             buffer = download_file(service, file["id"])
@@ -116,6 +140,11 @@ def extract_text(service, file):
         elif mime == "text/plain":
             buffer = download_file(service, file["id"])
             return buffer.read().decode("utf-8", errors="ignore")
+
+        elif mime in ["image/jpeg", "image/png", "image/webp"]:
+            buffer = download_file(service, file["id"])
+            st.write(f"🔍 OCR obrazu '{name}'...")
+            return ocr_image_bytes(buffer.read())
 
         else:
             st.warning(f"⚠️ Pomijam '{name}' — nieobsługiwany typ pliku: {mime}")
@@ -143,7 +172,7 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
     with st.spinner("Pobieram listę plików z Google Drive (razem z podfolderami)..."):
         files = list_files(service, GDRIVE_FOLDER_ID)
 
-    st.info(f"Znaleziono {len(files)} plików (uwzględniając podfoldery).")
+    st.info(f"Znaleziono {len(files)} plików (uwzględniając podfoldery). OCR dla skanów może znacznie wydłużyć czas synchronizacji.")
 
     progress = st.progress(0)
     status = st.empty()
