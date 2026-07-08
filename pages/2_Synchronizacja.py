@@ -13,7 +13,11 @@ from odf.teletype import extractText
 import pytesseract
 import PyPDF2
 import docx
+import pandas as pd
 import io
+import subprocess
+import tempfile
+import os
 
 # ====== KONFIGURACJA ======
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -32,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR dla skanów i zdjęć oraz pliki .odt.")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR, .odt, stare .doc i .xls.")
 
 
 @st.cache_resource
@@ -133,6 +137,33 @@ def extract_odt_text(buffer):
     return "\n".join(all_text)
 
 
+def extract_old_doc_text(doc_bytes):
+    with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
+        tmp.write(doc_bytes)
+        tmp_path = tmp.name
+
+    try:
+        result = subprocess.run(
+            ["antiword", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        return result.stdout
+    finally:
+        os.unlink(tmp_path)
+
+
+def extract_old_xls_text(xls_bytes):
+    all_text = []
+    excel_file = pd.ExcelFile(io.BytesIO(xls_bytes), engine="xlrd")
+    for sheet_name in excel_file.sheet_names:
+        df = excel_file.parse(sheet_name, header=None)
+        all_text.append(f"[Arkusz: {sheet_name}]")
+        all_text.append(df.to_string(index=False, header=False))
+    return "\n".join(all_text)
+
+
 def extract_text(service, file):
     mime = file["mimeType"]
     name = file["name"]
@@ -167,6 +198,14 @@ def extract_text(service, file):
             buffer = download_file(service, file["id"])
             document = docx.Document(buffer)
             return "\n".join([p.text for p in document.paragraphs])
+
+        elif mime == "application/msword":
+            buffer = download_file(service, file["id"])
+            return extract_old_doc_text(buffer.read())
+
+        elif mime == "application/vnd.ms-excel":
+            buffer = download_file(service, file["id"])
+            return extract_old_xls_text(buffer.read())
 
         elif mime == "application/vnd.oasis.opendocument.text":
             buffer = download_file(service, file["id"])
