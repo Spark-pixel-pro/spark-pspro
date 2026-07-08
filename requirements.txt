@@ -10,3 +10,6 @@ google-auth
 google-auth-httplib2
 python-docx
 sentence-transformers
+pytesseract
+pdf2image
+Pillow
