@@ -6,6 +6,9 @@ from googleapiclient.http import MediaIoBaseDownload
 from sentence_transformers import SentenceTransformer
 from pdf2image import convert_from_bytes
 from PIL import Image
+from odf.opendocument import load as odf_load
+from odf import text as odf_text
+from odf.teletype import extractText
 import pytesseract
 import PyPDF2
 import docx
@@ -28,7 +31,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR dla skanów i zdjęć.")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR dla skanów i zdjęć oraz pliki .odt.")
 
 
 @st.cache_resource
@@ -102,6 +105,12 @@ def ocr_pdf_bytes(pdf_bytes):
     return full_text
 
 
+def extract_odt_text(buffer):
+    doc = odf_load(buffer)
+    paragraphs = doc.getElementsByType(odf_text.P)
+    return "\n".join([extractText(p) for p in paragraphs])
+
+
 def extract_text(service, file):
     mime = file["mimeType"]
     name = file["name"]
@@ -136,6 +145,10 @@ def extract_text(service, file):
             buffer = download_file(service, file["id"])
             document = docx.Document(buffer)
             return "\n".join([p.text for p in document.paragraphs])
+
+        elif mime == "application/vnd.oasis.opendocument.text":
+            buffer = download_file(service, file["id"])
+            return extract_odt_text(buffer)
 
         elif mime == "text/plain":
             buffer = download_file(service, file["id"])
