@@ -36,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Obsługuje OCR, .odt, stare .doc, .xls i .xlsx.")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Pomija już zsynchronizowane pliki.")
 
 
 @st.cache_resource
@@ -72,6 +72,14 @@ def list_files(service, folder_id, path=""):
             all_files.append(item)
 
     return all_files
+
+
+def get_already_synced_sources():
+    """Zwraca zbiór (set) nazw plików już zapisanych w bazie."""
+    response = supabase.table("wiedza").select("zrodlo").execute()
+    if response.data:
+        return set(row["zrodlo"] for row in response.data)
+    return set()
 
 
 def download_file(service, file_id):
@@ -253,6 +261,27 @@ def chunk_text(text, chunk_size=500):
     return chunks
 
 
+def save_chunks(source_label, chunks, model):
+    """Najpierw wstawia nowe fragmenty, dopiero potem usuwa stare — bezpieczniejsze przy przerwaniu."""
+    new_ids = []
+    for chunk in chunks:
+        embedding = model.encode(chunk).tolist()
+        result = supabase.table("wiedza").insert({
+            "zrodlo": source_label,
+            "fragment": chunk,
+            "embedding": embedding
+        }).execute()
+        if result.data:
+            new_ids.append(result.data[0]["id"])
+
+    if new_ids:
+        supabase.table("wiedza").delete().eq("zrodlo", source_label).not_.in_("id", new_ids).execute()
+
+    return len(new_ids)
+
+
+force_resync = st.checkbox("🔁 Wymuś ponowną synchronizację WSZYSTKICH plików (ignoruj już zsynchronizowane)")
+
 if st.button("🚀 Synchronizuj teraz", type="primary"):
     model = load_embedding_model()
     service = get_drive_service()
@@ -260,40 +289,45 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
     with st.spinner("Pobieram listę plików z Google Drive (razem z podfolderami)..."):
         files = list_files(service, GDRIVE_FOLDER_ID)
 
-    st.info(f"Znaleziono {len(files)} plików (uwzględniając podfoldery). OCR dla skanów może znacznie wydłużyć czas synchronizacji.")
+    if force_resync:
+        already_synced = set()
+        st.info(f"Znaleziono {len(files)} plików. Wymuszono pełną resynchronizację — przetwarzam wszystko od nowa.")
+    else:
+        already_synced = get_already_synced_sources()
+        st.info(f"Znaleziono {len(files)} plików. Już zsynchronizowanych: {len(already_synced)} — te zostaną pominięte.")
 
     progress = st.progress(0)
     status = st.empty()
     total_chunks = 0
+    skipped_count = 0
+    processed_count = 0
 
     for idx, file in enumerate(files):
         source_label = f"{file.get('folder_path', '')}/{file['name']}" if file.get('folder_path') else file['name']
+
+        if source_label in already_synced:
+            skipped_count += 1
+            progress.progress((idx + 1) / len(files))
+            continue
+
         status.text(f"Przetwarzam: {source_label} ({idx + 1}/{len(files)})")
 
         text = extract_text(service, file)
 
         if text and text.strip():
             char_count = len(text.strip())
-            st.write(f"✅ **{source_label}** — wyciągnięto {char_count} znaków tekstu")
-
-            supabase.table("wiedza").delete().eq("zrodlo", source_label).execute()
-
             chunks = chunk_text(text)
-            for chunk in chunks:
-                embedding = model.encode(chunk).tolist()
-                supabase.table("wiedza").insert({
-                    "zrodlo": source_label,
-                    "fragment": chunk,
-                    "embedding": embedding
-                }).execute()
-                total_chunks += 1
+            saved = save_chunks(source_label, chunks, model)
+            total_chunks += saved
+            processed_count += 1
+            st.write(f"✅ **{source_label}** — wyciągnięto {char_count} znaków, zapisano {saved} fragmentów")
         else:
             st.write(f"⚠️ **{source_label}** — brak wyciągniętego tekstu (0 znaków)")
 
         progress.progress((idx + 1) / len(files))
 
     status.text("")
-    st.success(f"✅ Gotowe! Przetworzono {len(files)} plików, zapisano {total_chunks} fragmentów wiedzy.")
+    st.success(f"✅ Gotowe! Przetworzono nowo {processed_count} plików, pominięto (już gotowe) {skipped_count}, zapisano {total_chunks} nowych fragmentów.")
 
 st.divider()
 st.subheader("📊 Aktualny stan bazy wiedzy")
