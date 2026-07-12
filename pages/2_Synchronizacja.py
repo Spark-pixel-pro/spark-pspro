@@ -36,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Pomija już zsynchronizowane pliki.")
+st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Pomija już zsynchronizowane pliki oraz zbyt duże pliki.")
 
 
 @st.cache_resource
@@ -58,7 +58,7 @@ def list_files(service, folder_id, path=""):
     query = f"'{folder_id}' in parents and trashed = false"
     results = service.files().list(
         q=query,
-        fields="files(id, name, mimeType)",
+        fields="files(id, name, mimeType, size)",
         pageSize=1000
     ).execute()
     items = results.get("files", [])
@@ -186,6 +186,11 @@ def extract_text(service, file):
     name = file["name"]
 
     try:
+        file_size = int(file.get("size", 0))
+        if file_size > 15 * 1024 * 1024:
+            st.warning(f"⚠️ Pomijam '{name}' — plik zbyt duży ({file_size // 1024 // 1024} MB), pomijam dla bezpieczeństwa.")
+            return None
+
         if mime == "application/vnd.google-apps.document":
             return export_google_file(service, file["id"], "text/plain")
 
@@ -208,9 +213,6 @@ def extract_text(service, file):
             if text.strip():
                 return text
             else:
-                if len(pdf_bytes) > 20 * 1024 * 1024:
-                    st.warning(f"⚠️ '{name}' jest zbyt duży (>20MB) — pomijam OCR dla bezpieczeństwa.")
-                    return None
                 st.write(f"🔍 '{name}' wygląda na skan — uruchamiam OCR (to potrwa dłużej)...")
                 return ocr_pdf_bytes(pdf_bytes)
 
