@@ -30,7 +30,7 @@ def load_embedding_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 
-def search_knowledge(question, match_count=5):
+def search_knowledge(question, match_count=10):
     model = load_embedding_model()
     query_embedding = model.encode(question).tolist()
 
@@ -51,63 +51,4 @@ def build_context(chunks):
     return "\n\n---\n\n".join(parts)
 
 
-SYSTEM_PROMPT = """Jesteś Spark, wewnętrznym asystentem pracowników firmy PS PRO Solutions, zajmującej się świadectwami charakterystyki energetycznej budynków.
-
-Odpowiadasz pracownikom na pytania o procedury, przepisy, przykłady wcześniejszych świadectw i wiedzę techniczną firmy.
-
-Zasady:
-- Odpowiadaj WYŁĄCZNIE na podstawie dostarczonego kontekstu z bazy wiedzy firmy.
-- Jeśli w kontekście nie ma odpowiedzi na pytanie, powiedz wprost: "Nie znalazłem tej informacji w bazie wiedzy — sprawdź u przełożonego lub w oryginalnych dokumentach."
-- Zawsze podawaj z jakiego dokumentu pochodzi informacja (np. "Zgodnie z 'instrukcja świadectwa.docx'...").
-- Odpowiadaj krótko, konkretnie, po polsku, tonem kolegi z pracy — pomocnym, ale rzeczowym.
-- Nie zmyślaj przepisów ani procedur, których nie ma w kontekście."""
-
-
-if "employee_messages" not in st.session_state:
-    st.session_state.employee_messages = []
-
-for message in st.session_state.employee_messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-question = st.chat_input("Zapytaj o procedurę, przepis, przykład świadectwa...")
-
-if question:
-    st.session_state.employee_messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
-        st.markdown(question)
-
-    with st.chat_message("assistant"):
-        with st.spinner("Szukam w bazie wiedzy..."):
-            chunks = search_knowledge(question)
-            context = build_context(chunks)
-
-            if context:
-                user_prompt = f"""Kontekst z bazy wiedzy firmy:
-
-{context}
-
----
-
-Pytanie pracownika: {question}"""
-            else:
-                user_prompt = f"Pytanie pracownika: {question}\n\n(Nie znaleziono żadnych powiązanych fragmentów w bazie wiedzy.)"
-
-            completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ]
-            )
-
-            answer = completion.choices[0].message.content
-            st.markdown(answer)
-
-            if chunks:
-                with st.expander("📄 Źródła użyte do odpowiedzi"):
-                    unique_sources = set(c["zrodlo"] for c in chunks)
-                    for source in sorted(unique_sources):
-                        st.write(f"- {source}")
-
-    st.session_state.employee_messages.append({"role": "assistant", "content": answer})
+SYSTEM_PROMPT = """Jesteś Spark, wewnętrznym asystentem pracowników firmy PS PRO Solutions, zajmującej się świadectwami
