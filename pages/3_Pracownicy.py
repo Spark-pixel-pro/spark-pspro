@@ -23,6 +23,8 @@ st.markdown("""
 st.title("👷 Spark — Panel Pracowników")
 st.caption("Asystent wewnętrzny PS PRO Solutions")
 
+BRAK_ODPOWIEDZI_TEKST = "Nie znalazłem tej informacji w bazie wiedzy"
+
 
 @st.cache_resource
 def load_embedding_model():
@@ -51,23 +53,55 @@ def build_context(chunks):
     return "\n\n---\n\n".join(parts)
 
 
-SYSTEM_PROMPT = """Jesteś Spark, wewnętrznym asystentem pracownikow firmy PS PRO Solutions, zajmującej się świadectwami charakterystyki energetycznej budynkow.
+SYSTEM_PROMPT = f"""Jesteś Spark, wewnętrznym asystentem pracownikow firmy PS PRO Solutions, zajmującej się świadectwami charakterystyki energetycznej budynkow.
 
 Zasady:
 - Odpowiadaj WYŁĄCZNIE na podstawie dostarczonego kontekstu z bazy wiedzy firmy.
-- Jeśli w kontekście nie ma odpowiedzi, powiedz wprost: Nie znalazłem tej informacji w bazie wiedzy, sprawdź u przełożonego lub w oryginalnych dokumentach.
+- Jeśli w kontekście nie ma odpowiedzi, powiedz DOKŁADNIE tymi słowami: "{BRAK_ODPOWIEDZI_TEKST}."
 - Zawsze podawaj z jakiego dokumentu pochodzi informacja.
 - Odpowiadaj krótko, konkretnie, po polsku, tonem kolegi z pracy.
 - Nie zmyślaj przepisów ani procedur.
 - Jeśli źrodło wyraźnie nie pasuje do pytania, zignoruj je i nie cytuj."""
 
 
+def zapytaj_internet(pytanie):
+    completion = groq_client.chat.completions.create(
+        model="compound-beta",
+        messages=[
+            {"role": "system", "content": "Odpowiadaj krótko i konkretnie po polsku, na podstawie aktualnych informacji z internetu."},
+            {"role": "user", "content": pytanie}
+        ]
+    )
+    return completion.choices[0].message.content
+
+
 if "employee_messages" not in st.session_state:
     st.session_state.employee_messages = []
+if "pending_web_question" not in st.session_state:
+    st.session_state.pending_web_question = None
 
 for message in st.session_state.employee_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+
+if st.session_state.pending_web_question:
+    with st.chat_message("assistant"):
+        st.markdown("🤔 Nie znalazłem tej informacji w firmowej bazie wiedzy. Chcesz, żebym sprawdził w internecie?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Tak, sprawdź w internecie", key="web_yes"):
+                pytanie = st.session_state.pending_web_question
+                with st.spinner("Szukam w internecie..."):
+                    odpowiedz_net = zapytaj_internet(pytanie)
+                tresc = "🌐 **Ogólna wiedza z internetu — zweryfikuj przed zastosowaniem, to NIE jest firmowa procedura:**\n\n" + odpowiedz_net
+                st.session_state.employee_messages.append({"role": "assistant", "content": tresc})
+                st.session_state.pending_web_question = None
+                st.rerun()
+        with col2:
+            if st.button("❌ Nie, dziękuję", key="web_no"):
+                st.session_state.employee_messages.append({"role": "assistant", "content": "OK, nie sprawdzam w internecie."})
+                st.session_state.pending_web_question = None
+                st.rerun()
 
 question = st.chat_input("Zapytaj o procedurę, przepis, przykład świadectwa...")
 
@@ -104,3 +138,7 @@ if question:
                         st.write(f"- {source}")
 
     st.session_state.employee_messages.append({"role": "assistant", "content": answer})
+
+    if BRAK_ODPOWIEDZI_TEKST in answer:
+        st.session_state.pending_web_question = question
+        st.rerun()
