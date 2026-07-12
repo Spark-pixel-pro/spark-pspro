@@ -161,7 +161,7 @@ if pytanie := st.chat_input("Napisz wiadomosc do Sparka..."):
     with st.chat_message("assistant"):
         with st.spinner(""):
             odp = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + czysta_historia(st.session_state.historia)
             )
             tekst = odp.choices[0].message.content
