@@ -75,7 +75,6 @@ def list_files(service, folder_id, path=""):
 
 
 def get_already_synced_sources():
-    """Zwraca zbiór (set) nazw plików już zapisanych w bazie."""
     response = supabase.table("wiedza").select("zrodlo").execute()
     if response.data:
         return set(row["zrodlo"] for row in response.data)
@@ -110,8 +109,8 @@ def ocr_image_bytes(image_bytes):
     return text
 
 
-def ocr_pdf_bytes(pdf_bytes):
-    pages = convert_from_bytes(pdf_bytes, dpi=200)
+def ocr_pdf_bytes(pdf_bytes, max_pages=15):
+    pages = convert_from_bytes(pdf_bytes, dpi=120, last_page=max_pages)
     full_text = ""
     for page_image in pages:
         full_text += pytesseract.image_to_string(page_image, lang="pol") + "\n"
@@ -209,6 +208,9 @@ def extract_text(service, file):
             if text.strip():
                 return text
             else:
+                if len(pdf_bytes) > 20 * 1024 * 1024:
+                    st.warning(f"⚠️ '{name}' jest zbyt duży (>20MB) — pomijam OCR dla bezpieczeństwa.")
+                    return None
                 st.write(f"🔍 '{name}' wygląda na skan — uruchamiam OCR (to potrwa dłużej)...")
                 return ocr_pdf_bytes(pdf_bytes)
 
@@ -262,7 +264,6 @@ def chunk_text(text, chunk_size=500):
 
 
 def save_chunks(source_label, chunks, model):
-    """Najpierw wstawia nowe fragmenty, dopiero potem usuwa stare — bezpieczniejsze przy przerwaniu."""
     new_ids = []
     for chunk in chunks:
         embedding = model.encode(chunk).tolist()
