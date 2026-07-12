@@ -89,7 +89,7 @@ if question:
                 user_prompt = "Pytanie pracownika: " + question + "\n\n(Nie znaleziono żadnych powiązanych fragmentów w bazie wiedzy.)"
 
             completion = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
