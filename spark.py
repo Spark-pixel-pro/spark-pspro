@@ -1,3 +1,6 @@
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
 import streamlit as st
 from groq import Groq
 import requests
@@ -17,6 +20,28 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 client = Groq(api_key=GROQ_KEY)
+
+def append_lead_to_sheet(imie, telefon, email, temat):
+    try:
+        creds_dict = dict(st.secrets["gdrive_service_account"])
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=["https://www.googleapis.com/auth/spreadsheets"]
+        )
+        sheets_service = build("sheets", "v4", credentials=creds)
+
+        sheet_id = st.secrets["GSHEET_ID"]
+        values = [[imie, telefon, email, temat, "Nowy"]]
+
+        sheets_service.spreadsheets().values().append(
+            spreadsheetId=sheet_id,
+            range="A:F",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={"values": values}
+        ).execute()
+    except Exception as e:
+        print(f"Nie udało się zapisać do Google Sheets: {e}")
 
 st.set_page_config(page_title="Spark - PS Pro Solutions", layout="centered")
 
@@ -84,6 +109,7 @@ def zapisz_klienta(imie, telefon, email, temat):
                 "zainteresowania": temat,
                 "historia": "Pierwsza wizyta"
             }).execute()
+        append_lead_to_sheet(imie, telefon, email, temat)
     except:
         pass
 
