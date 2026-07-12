@@ -40,7 +40,7 @@ Klient napisał do nas, ale nie sfinalizował zamówienia. Napisz przypomnienie,
 zaproponuj kontakt. Maksymalnie 4-5 zdań. Podpisz jako "Zespół PS PRO Solutions". Nie dodawaj tematu maila, tylko treść."""
 
     completion = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}]
     )
     return completion.choices[0].message.content
