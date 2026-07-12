@@ -36,12 +36,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki z folderu na Drive (razem z podfolderami), dzieli na fragmenty i zapisuje do bazy wiedzy Sparka. Pomija już zsynchronizowane pliki oraz zbyt duże pliki.")
+st.caption("Pobiera pliki, dzieli na fragmenty, zapisuje do bazy wiedzy Sparka. Używa cache tekstu — zmiana modelu embeddingowego nie wymaga ponownego OCR.")
 
 
 @st.cache_resource
 def load_embedding_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+    return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 
 def get_drive_service():
@@ -74,11 +74,18 @@ def list_files(service, folder_id, path=""):
     return all_files
 
 
-def get_already_synced_sources():
-    response = supabase.table("wiedza").select("zrodlo").execute()
+def get_cached_text(source_label):
+    response = supabase.table("tekst_cache").select("tekst").eq("zrodlo", source_label).execute()
     if response.data:
-        return set(row["zrodlo"] for row in response.data)
-    return set()
+        return response.data[0]["tekst"]
+    return None
+
+
+def save_to_cache(source_label, text):
+    supabase.table("tekst_cache").upsert({
+        "zrodlo": source_label,
+        "tekst": text
+    }).execute()
 
 
 def download_file(service, file_id):
@@ -105,8 +112,7 @@ def export_google_file(service, file_id, mime_type):
 
 def ocr_image_bytes(image_bytes):
     image = Image.open(io.BytesIO(image_bytes))
-    text = pytesseract.image_to_string(image, lang="pol")
-    return text
+    return pytesseract.image_to_string(image, lang="pol")
 
 
 def ocr_pdf_bytes(pdf_bytes, max_pages=15):
@@ -120,27 +126,22 @@ def ocr_pdf_bytes(pdf_bytes, max_pages=15):
 def extract_odt_text(buffer):
     doc = odf_load(buffer)
     all_text = []
-
     for p in doc.getElementsByType(odf_text.P):
         t = extractText(p)
         if t.strip():
             all_text.append(t)
-
     for h in doc.getElementsByType(odf_text.H):
         t = extractText(h)
         if t.strip():
             all_text.append(t)
-
     for li in doc.getElementsByType(odf_text.ListItem):
         t = extractText(li)
         if t.strip():
             all_text.append(t)
-
     for cell in doc.getElementsByType(TableCell):
         t = extractText(cell)
         if t.strip():
             all_text.append(t)
-
     return "\n".join(all_text)
 
 
@@ -148,14 +149,8 @@ def extract_old_doc_text(doc_bytes):
     with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
         tmp.write(doc_bytes)
         tmp_path = tmp.name
-
     try:
-        result = subprocess.run(
-            ["antiword", tmp_path],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        result = subprocess.run(["antiword", tmp_path], capture_output=True, text=True, timeout=30)
         return result.stdout
     finally:
         os.unlink(tmp_path)
@@ -181,71 +176,57 @@ def extract_xlsx_text(xlsx_bytes):
     return "\n".join(all_text)
 
 
-def extract_text(service, file):
+def extract_text_from_drive(service, file):
     mime = file["mimeType"]
     name = file["name"]
 
     try:
         file_size = int(file.get("size", 0))
         if file_size > 15 * 1024 * 1024:
-            st.warning(f"⚠️ Pomijam '{name}' — plik zbyt duży ({file_size // 1024 // 1024} MB), pomijam dla bezpieczeństwa.")
+            st.warning(f"⚠️ Pomijam '{name}' — plik zbyt duży ({file_size // 1024 // 1024} MB).")
             return None
 
         if mime == "application/vnd.google-apps.document":
             return export_google_file(service, file["id"], "text/plain")
-
         elif mime == "application/vnd.google-apps.spreadsheet":
             return export_google_file(service, file["id"], "text/csv")
-
         elif mime == "application/vnd.google-apps.presentation":
             return export_google_file(service, file["id"], "text/plain")
-
         elif mime == "application/pdf":
             buffer = download_file(service, file["id"])
             pdf_bytes = buffer.read()
-
             reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
             text = ""
             for page in reader.pages:
-                page_text = page.extract_text() or ""
-                text += page_text
-
+                text += page.extract_text() or ""
             if text.strip():
                 return text
             else:
-                st.write(f"🔍 '{name}' wygląda na skan — uruchamiam OCR (to potrwa dłużej)...")
+                st.write(f"🔍 '{name}' wygląda na skan — uruchamiam OCR...")
                 return ocr_pdf_bytes(pdf_bytes)
-
         elif mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             buffer = download_file(service, file["id"])
             document = docx.Document(buffer)
             return "\n".join([p.text for p in document.paragraphs])
-
         elif mime == "application/msword":
             buffer = download_file(service, file["id"])
             return extract_old_doc_text(buffer.read())
-
         elif mime == "application/vnd.ms-excel":
             buffer = download_file(service, file["id"])
             return extract_old_xls_text(buffer.read())
-
         elif mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
             buffer = download_file(service, file["id"])
             return extract_xlsx_text(buffer.read())
-
         elif mime == "application/vnd.oasis.opendocument.text":
             buffer = download_file(service, file["id"])
             return extract_odt_text(buffer)
-
         elif mime == "text/plain":
             buffer = download_file(service, file["id"])
             return buffer.read().decode("utf-8", errors="ignore")
-
         elif mime in ["image/jpeg", "image/png", "image/webp"]:
             buffer = download_file(service, file["id"])
             st.write(f"🔍 OCR obrazu '{name}'...")
             return ocr_image_bytes(buffer.read())
-
         else:
             st.warning(f"⚠️ Pomijam '{name}' — nieobsługiwany typ pliku: {mime}")
             return None
@@ -265,7 +246,7 @@ def chunk_text(text, chunk_size=500):
     return chunks
 
 
-def save_chunks(source_label, chunks, model):
+def save_embeddings(source_label, chunks, model):
     new_ids = []
     for chunk in chunks:
         embedding = model.encode(chunk).tolist()
@@ -276,61 +257,83 @@ def save_chunks(source_label, chunks, model):
         }).execute()
         if result.data:
             new_ids.append(result.data[0]["id"])
-
     if new_ids:
         supabase.table("wiedza").delete().eq("zrodlo", source_label).not_.in_("id", new_ids).execute()
-
     return len(new_ids)
 
 
-force_resync = st.checkbox("🔁 Wymuś ponowną synchronizację WSZYSTKICH plików (ignoruj już zsynchronizowane)")
+col1, col2 = st.columns(2)
+with col1:
+    force_redownload = st.checkbox("🔁 Wymuś ponowne pobranie z Drive (ignoruj cache tekstu)")
+with col2:
+    force_reembed_only = st.checkbox("⚡ Przelicz TYLKO wektory z cache (bez łączenia z Drive)")
 
 if st.button("🚀 Synchronizuj teraz", type="primary"):
     model = load_embedding_model()
-    service = get_drive_service()
-
-    with st.spinner("Pobieram listę plików z Google Drive (razem z podfolderami)..."):
-        files = list_files(service, GDRIVE_FOLDER_ID)
-
-    if force_resync:
-        already_synced = set()
-        st.info(f"Znaleziono {len(files)} plików. Wymuszono pełną resynchronizację — przetwarzam wszystko od nowa.")
-    else:
-        already_synced = get_already_synced_sources()
-        st.info(f"Znaleziono {len(files)} plików. Już zsynchronizowanych: {len(already_synced)} — te zostaną pominięte.")
 
     progress = st.progress(0)
     status = st.empty()
     total_chunks = 0
-    skipped_count = 0
     processed_count = 0
+    cache_hits = 0
 
-    for idx, file in enumerate(files):
-        source_label = f"{file.get('folder_path', '')}/{file['name']}" if file.get('folder_path') else file['name']
+    if force_reembed_only:
+        response = supabase.table("tekst_cache").select("zrodlo, tekst").execute()
+        cached_files = response.data or []
+        st.info(f"Znaleziono {len(cached_files)} plików w cache. Przeliczam tylko wektory (bez Google Drive)...")
 
-        if source_label in already_synced:
-            skipped_count += 1
+        for idx, item in enumerate(cached_files):
+            source_label = item["zrodlo"]
+            text = item["tekst"]
+            status.text(f"Przeliczam wektory: {source_label} ({idx + 1}/{len(cached_files)})")
+
+            if text and text.strip():
+                chunks = chunk_text(text)
+                saved = save_embeddings(source_label, chunks, model)
+                total_chunks += saved
+                processed_count += 1
+
+            progress.progress((idx + 1) / len(cached_files))
+
+        status.text("")
+        st.success(f"✅ Gotowe! Przeliczono wektory dla {processed_count} plików, zapisano {total_chunks} fragmentów.")
+
+    else:
+        service = get_drive_service()
+        with st.spinner("Pobieram listę plików z Google Drive..."):
+            files = list_files(service, GDRIVE_FOLDER_ID)
+
+        st.info(f"Znaleziono {len(files)} plików.")
+
+        for idx, file in enumerate(files):
+            source_label = f"{file.get('folder_path', '')}/{file['name']}" if file.get('folder_path') else file['name']
+            status.text(f"Przetwarzam: {source_label} ({idx + 1}/{len(files)})")
+
+            text = None
+            if not force_redownload:
+                text = get_cached_text(source_label)
+                if text is not None:
+                    cache_hits += 1
+
+            if text is None:
+                text = extract_text_from_drive(service, file)
+                if text and text.strip():
+                    save_to_cache(source_label, text)
+
+            if text and text.strip():
+                char_count = len(text.strip())
+                chunks = chunk_text(text)
+                saved = save_embeddings(source_label, chunks, model)
+                total_chunks += saved
+                processed_count += 1
+                st.write(f"✅ **{source_label}** — {char_count} znaków, zapisano {saved} fragmentów")
+            else:
+                st.write(f"⚠️ **{source_label}** — brak tekstu (0 znaków)")
+
             progress.progress((idx + 1) / len(files))
-            continue
 
-        status.text(f"Przetwarzam: {source_label} ({idx + 1}/{len(files)})")
-
-        text = extract_text(service, file)
-
-        if text and text.strip():
-            char_count = len(text.strip())
-            chunks = chunk_text(text)
-            saved = save_chunks(source_label, chunks, model)
-            total_chunks += saved
-            processed_count += 1
-            st.write(f"✅ **{source_label}** — wyciągnięto {char_count} znaków, zapisano {saved} fragmentów")
-        else:
-            st.write(f"⚠️ **{source_label}** — brak wyciągniętego tekstu (0 znaków)")
-
-        progress.progress((idx + 1) / len(files))
-
-    status.text("")
-    st.success(f"✅ Gotowe! Przetworzono nowo {processed_count} plików, pominięto (już gotowe) {skipped_count}, zapisano {total_chunks} nowych fragmentów.")
+        status.text("")
+        st.success(f"✅ Gotowe! Przetworzono {processed_count} plików ({cache_hits} z cache, błyskawicznie), zapisano {total_chunks} fragmentów.")
 
 st.divider()
 st.subheader("📊 Aktualny stan bazy wiedzy")
@@ -343,4 +346,4 @@ if response.data:
         for source in sorted(unique_sources):
             st.write(f"- {source}")
 else:
-    st.write("Baza wiedzy jest jeszcze pusta — kliknij 'Synchronizuj teraz' powyżej.")
+    st.write("Baza wiedzy jest jeszcze pusta.")
