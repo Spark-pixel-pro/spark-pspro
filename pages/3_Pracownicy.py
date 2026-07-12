@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 from sentence_transformers import SentenceTransformer
 from groq import Groq
+import re
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -25,20 +26,51 @@ st.caption("Asystent wewnętrzny PS PRO Solutions")
 
 BRAK_ODPOWIEDZI_TEKST = "Nie znalazłem tej informacji w bazie wiedzy"
 
+STOPWORDS = {
+    "jak", "co", "gdzie", "kiedy", "czy", "jest", "się", "na", "do", "w", "z",
+    "dla", "oraz", "i", "a", "to", "są", "po", "o", "ile", "jaki", "jaka", "jakie",
+    "tego", "tej", "przy", "za", "ma", "być", "był", "była"
+}
+
 
 @st.cache_resource
 def load_embedding_model():
     return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 
-def search_knowledge(question, match_count=6):
+def vector_search(question, match_count=4):
     model = load_embedding_model()
     query_embedding = model.encode(question).tolist()
     response = supabase.rpc(
         "match_wiedza",
         {"query_embedding": query_embedding, "match_count": match_count}
     ).execute()
-    return response.data
+    return response.data or []
+
+
+def keyword_search(question, limit=4):
+    words = re.findall(r"\w+", question.lower())
+    keywords = [w for w in words if len(w) > 3 and w not in STOPWORDS]
+    if not keywords:
+        return []
+
+    or_conditions = ",".join([f"zrodlo.ilike.%{w}%" for w in keywords])
+    try:
+        response = supabase.table("wiedza").select("id, zrodlo, fragment").or_(or_conditions).limit(limit).execute()
+        return response.data or []
+    except Exception:
+        return []
+
+
+def search_knowledge(question):
+    vec_results = vector_search(question, match_count=4)
+    key_results = keyword_search(question, limit=4)
+
+    combined = {}
+    for chunk in vec_results + key_results:
+        combined[chunk["id"]] = chunk
+
+    return list(combined.values())[:8]
 
 
 def build_context(chunks):
@@ -47,8 +79,8 @@ def build_context(chunks):
     parts = []
     for chunk in chunks:
         fragment = chunk['fragment']
-        if len(fragment) > 800:
-            fragment = fragment[:800] + "..."
+        if len(fragment) > 700:
+            fragment = fragment[:700] + "..."
         parts.append(f"[Źródło: {chunk['zrodlo']}]\n{fragment}")
     return "\n\n---\n\n".join(parts)
 
