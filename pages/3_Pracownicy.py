@@ -30,7 +30,7 @@ def load_embedding_model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
 
-def search_knowledge(question, match_count=10):
+def search_knowledge(question, match_count=6):
     model = load_embedding_model()
     query_embedding = model.encode(question).tolist()
 
@@ -47,7 +47,10 @@ def build_context(chunks):
         return ""
     parts = []
     for chunk in chunks:
-        parts.append(f"[Źródło: {chunk['zrodlo']}]\n{chunk['fragment']}")
+        fragment = chunk['fragment']
+        if len(fragment) > 800:
+            fragment = fragment[:800] + "..."
+        parts.append(f"[Źródło: {chunk['zrodlo']}]\n{fragment}")
     return "\n\n---\n\n".join(parts)
 
 
