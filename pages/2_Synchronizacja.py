@@ -3,7 +3,7 @@ from supabase import create_client
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-from sentence_transformers import SentenceTransformer
+import cohere
 from pdf2image import convert_from_bytes
 from PIL import Image
 from odf.opendocument import load as odf_load
@@ -23,8 +23,10 @@ import os
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 GDRIVE_FOLDER_ID = st.secrets["GDRIVE_FOLDER_ID"]
+COHERE_API_KEY = st.secrets["COHERE_API_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+cohere_client = cohere.Client(COHERE_API_KEY)
 
 st.set_page_config(page_title="Spark - Synchronizacja", layout="wide")
 
@@ -36,12 +38,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Pobiera pliki, dzieli na fragmenty, zapisuje do bazy wiedzy Sparka. Używa cache tekstu — zmiana modelu embeddingowego nie wymaga ponownego OCR.")
+st.caption("Używa Cohere do generowania wektorów. Cache tekstu — zmiana modelu nie wymaga ponownego OCR.")
 
 
-@st.cache_resource
-def load_embedding_model():
-    return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+def get_embedding(text, input_type="search_document"):
+    response = cohere_client.embed(
+        texts=[text],
+        model="embed-multilingual-v3.0",
+        input_type=input_type
+    )
+    return response.embeddings[0]
 
 
 def get_drive_service():
@@ -246,10 +252,10 @@ def chunk_text(text, chunk_size=500):
     return chunks
 
 
-def save_embeddings(source_label, chunks, model):
+def save_embeddings(source_label, chunks):
     new_ids = []
     for chunk in chunks:
-        embedding = model.encode(chunk).tolist()
+        embedding = get_embedding(chunk, input_type="search_document")
         result = supabase.table("wiedza").insert({
             "zrodlo": source_label,
             "fragment": chunk,
@@ -269,8 +275,6 @@ with col2:
     force_reembed_only = st.checkbox("⚡ Przelicz TYLKO wektory z cache (bez łączenia z Drive)")
 
 if st.button("🚀 Synchronizuj teraz", type="primary"):
-    model = load_embedding_model()
-
     progress = st.progress(0)
     status = st.empty()
     total_chunks = 0
@@ -280,7 +284,7 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
     if force_reembed_only:
         response = supabase.table("tekst_cache").select("zrodlo, tekst").execute()
         cached_files = response.data or []
-        st.info(f"Znaleziono {len(cached_files)} plików w cache. Przeliczam tylko wektory (bez Google Drive)...")
+        st.info(f"Znaleziono {len(cached_files)} plików w cache. Przeliczam wektory przez Cohere...")
 
         for idx, item in enumerate(cached_files):
             source_label = item["zrodlo"]
@@ -289,7 +293,7 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
 
             if text and text.strip():
                 chunks = chunk_text(text)
-                saved = save_embeddings(source_label, chunks, model)
+                saved = save_embeddings(source_label, chunks)
                 total_chunks += saved
                 processed_count += 1
 
@@ -323,7 +327,7 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
             if text and text.strip():
                 char_count = len(text.strip())
                 chunks = chunk_text(text)
-                saved = save_embeddings(source_label, chunks, model)
+                saved = save_embeddings(source_label, chunks)
                 total_chunks += saved
                 processed_count += 1
                 st.write(f"✅ **{source_label}** — {char_count} znaków, zapisano {saved} fragmentów")
@@ -333,7 +337,7 @@ if st.button("🚀 Synchronizuj teraz", type="primary"):
             progress.progress((idx + 1) / len(files))
 
         status.text("")
-        st.success(f"✅ Gotowe! Przetworzono {processed_count} plików ({cache_hits} z cache, błyskawicznie), zapisano {total_chunks} fragmentów.")
+        st.success(f"✅ Gotowe! Przetworzono {processed_count} plików ({cache_hits} z cache), zapisano {total_chunks} fragmentów.")
 
 st.divider()
 st.subheader("📊 Aktualny stan bazy wiedzy")
