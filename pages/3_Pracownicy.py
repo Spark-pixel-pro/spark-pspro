@@ -1,15 +1,17 @@
 import streamlit as st
 from supabase import create_client
-from sentence_transformers import SentenceTransformer
+import cohere
 from groq import Groq
 import re
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+COHERE_API_KEY = st.secrets["COHERE_API_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
+cohere_client = cohere.Client(COHERE_API_KEY)
 
 st.set_page_config(page_title="Spark - Panel Pracowników", layout="centered")
 
@@ -33,14 +35,17 @@ STOPWORDS = {
 }
 
 
-@st.cache_resource
-def load_embedding_model():
-    return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+def get_query_embedding(text):
+    response = cohere_client.embed(
+        texts=[text],
+        model="embed-multilingual-v3.0",
+        input_type="search_query"
+    )
+    return response.embeddings[0]
 
 
 def vector_search(question, match_count=4):
-    model = load_embedding_model()
-    query_embedding = model.encode(question).tolist()
+    query_embedding = get_query_embedding(question)
     response = supabase.rpc(
         "match_wiedza",
         {"query_embedding": query_embedding, "match_count": match_count}
