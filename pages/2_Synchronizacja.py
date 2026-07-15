@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import cohere
+from cohere.errors import TooManyRequestsError
 from pdf2image import convert_from_bytes
 from PIL import Image
 from odf.opendocument import load as odf_load
@@ -18,6 +19,7 @@ import io
 import subprocess
 import tempfile
 import os
+import time
 
 # ====== KONFIGURACJA ======
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -38,16 +40,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔄 Synchronizacja wiedzy z Google Drive")
-st.caption("Używa Cohere do generowania wektorów. Cache tekstu — zmiana modelu nie wymaga ponownego OCR.")
+st.caption("Używa Cohere (grupowo) do generowania wektorów. Cache tekstu — zmiana modelu nie wymaga ponownego OCR.")
 
 
-def get_embedding(text, input_type="search_document"):
-    response = cohere_client.embed(
-        texts=[text],
-        model="embed-multilingual-v3.0",
-        input_type=input_type
-    )
-    return response.embeddings[0]
+def get_embeddings_batch(texts, input_type="search_document", max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            response = cohere_client.embed(
+                texts=texts,
+                model="embed-multilingual-v3.0",
+                input_type=input_type
+            )
+            return response.embeddings
+        except TooManyRequestsError:
+            wait_time = 10 * (attempt + 1)
+            st.write(f"⏳ Limit zapytań Cohere osiągnięty — czekam {wait_time}s...")
+            time.sleep(wait_time)
+    raise Exception("Przekroczono maksymalną liczbę prób po limicie Cohere.")
 
 
 def get_drive_service():
@@ -253,9 +262,19 @@ def chunk_text(text, chunk_size=500):
 
 
 def save_embeddings(source_label, chunks):
+    if not chunks:
+        return 0
+
+    batch_size = 90
+    all_embeddings = []
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i + batch_size]
+        embeddings = get_embeddings_batch(batch, input_type="search_document")
+        all_embeddings.extend(embeddings)
+        time.sleep(2)
+
     new_ids = []
-    for chunk in chunks:
-        embedding = get_embedding(chunk, input_type="search_document")
+    for chunk, embedding in zip(chunks, all_embeddings):
         result = supabase.table("wiedza").insert({
             "zrodlo": source_label,
             "fragment": chunk,
@@ -263,8 +282,10 @@ def save_embeddings(source_label, chunks):
         }).execute()
         if result.data:
             new_ids.append(result.data[0]["id"])
+
     if new_ids:
         supabase.table("wiedza").delete().eq("zrodlo", source_label).not_.in_("id", new_ids).execute()
+
     return len(new_ids)
 
 
