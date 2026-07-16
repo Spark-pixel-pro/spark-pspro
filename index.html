@@ -20,15 +20,6 @@
   .header .title { font-size: 1.8rem; font-weight: 800; color: #FFD600; letter-spacing: 2px; }
   .header .subtitle { font-size: 0.85rem; color: #888; letter-spacing: 1px; margin-top: 4px; }
 
-  .tryb-wrap { display: flex; gap: 12px; margin: 16px 0; }
-  .tryb-btn {
-    padding: 10px 20px; border-radius: 24px; border: 2px solid #333;
-    background: #1a1a1a; color: #888; font-weight: 600; cursor: pointer;
-    font-size: 0.9rem; transition: all 0.2s;
-  }
-  .tryb-btn.aktywny.klient { border-color: #FFD600; background: #FFD600; color: #111; }
-  .tryb-btn.aktywny.pracownik { border-color: #4A9EFF; background: #4A9EFF; color: #111; }
-
   .mic-wrap { display: flex; flex-direction: column; align-items: center; margin: 24px 0; }
   .mic-btn {
     width: 100px; height: 100px; border-radius: 50%;
@@ -84,11 +75,6 @@
     <div class="subtitle">PS PRO SOLUTIONS — ASYSTENT GŁOSOWY</div>
   </div>
 
-  <div class="tryb-wrap">
-    <button class="tryb-btn klient aktywny klient" id="btnKlient">👤 Klient</button>
-    <button class="tryb-btn pracownik" id="btnPracownik">👷 Pracownik</button>
-  </div>
-
   <div class="error-box" id="errorBox"></div>
 
   <div class="mic-wrap">
@@ -105,9 +91,9 @@
 const EDGE_FUNCTION_URL = "https://kmxmgxiobhcovrvvcdqh.supabase.co/functions/v1/bright-api";
 const SUPABASE_ANON_KEY = "sb_publishable_FiS3WrWInHeqakBWl8mr6A_aVC4IJ32";
 const CISZA_TIMEOUT_MS = 1500;
+const TRYB = "klient";
 
 // ====== STAN ======
-let trybAktywny = "klient";
 let historiaRozmowy = [];
 
 // ====== ELEMENTY ======
@@ -116,22 +102,6 @@ const statusEl = document.getElementById('status');
 const interimEl = document.getElementById('interim');
 const chatEl = document.getElementById('chat');
 const errorBox = document.getElementById('errorBox');
-const btnKlient = document.getElementById('btnKlient');
-const btnPracownik = document.getElementById('btnPracownik');
-
-btnKlient.addEventListener('click', () => ustawTryb('klient'));
-btnPracownik.addEventListener('click', () => ustawTryb('pracownik'));
-
-function ustawTryb(tryb) {
-  trybAktywny = tryb;
-  btnKlient.classList.toggle('aktywny', tryb === 'klient');
-  btnPracownik.classList.toggle('aktywny', tryb === 'pracownik');
-  historiaRozmowy = [];
-  chatEl.innerHTML = '';
-  statusEl.textContent = tryb === 'klient'
-    ? 'Tryb klienta — kliknij mikrofon i powiedz coś'
-    : 'Tryb pracownika — zapytaj o procedurę lub przykład';
-}
 
 function showError(msg) {
   errorBox.textContent = msg;
@@ -266,7 +236,7 @@ async function wyslijDoMozguSparka(wiadomosc) {
       },
       body: JSON.stringify({
         wiadomosc: wiadomosc,
-        tryb: trybAktywny,
+        tryb: TRYB,
         historia: historiaRozmowy
       })
     });
@@ -333,19 +303,17 @@ function speak(text) {
       statusEl.textContent = "🔊 Spark mówi...";
     };
     utterance.onerror = (e) => {
-      showError("Błąd syntezy mowy: " + e.error + " (głosów dostępnych: " + dostepneGlosy.length + ")");
+      showError("Błąd syntezy mowy: " + e.error);
     };
     utterance.onend = () => {
-      statusEl.textContent = trybAktywny === 'klient'
-        ? 'Kliknij mikrofon i powiedz coś'
-        : 'Zapytaj o procedurę lub przykład';
+      statusEl.textContent = 'Kliknij mikrofon i powiedz coś';
     };
 
     window.speechSynthesis.speak(utterance);
 
     setTimeout(() => {
       if (!odpaliloSie) {
-        showError("Synteza mowy nie uruchomiła się w ciągu 1s. Dostępnych głosów: " + dostepneGlosy.length + ". Spróbuj kliknąć mikrofon ponownie.");
+        showError("Synteza mowy nie uruchomiła się. Spróbuj kliknąć mikrofon ponownie.");
       }
     }, 1000);
   };
