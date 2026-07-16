@@ -32,6 +32,21 @@ cohere_client = cohere.Client(COHERE_API_KEY)
 
 st.set_page_config(page_title="Spark - Synchronizacja", layout="wide")
 
+# ====== OCHRONA HASŁEM (ADMIN) ======
+if "zalogowany_admin" not in st.session_state:
+    st.session_state.zalogowany_admin = False
+
+if not st.session_state.zalogowany_admin:
+    st.title("🔒 Dostęp ograniczony")
+    haslo = st.text_input("Hasło administratora:", type="password")
+    if st.button("Zaloguj"):
+        if haslo == st.secrets["ADMIN_HASLO"]:
+            st.session_state.zalogowany_admin = True
+            st.rerun()
+        else:
+            st.error("Nieprawidłowe hasło")
+    st.stop()
+
 st.markdown("""
 <style>
     .stApp { background-color: #111111; }
