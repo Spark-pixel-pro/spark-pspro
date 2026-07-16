@@ -18,6 +18,12 @@ GMAIL_HASLO = st.secrets["GMAIL_HASLO"]
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
+# ====== KONFIGURACJA FIRMY (jedyne miejsce do zmiany przy nowym kliencie) ======
+FIRMA_NAZWA = st.secrets["FIRMA_NAZWA"]
+FIRMA_BRANZA = st.secrets["FIRMA_BRANZA"]
+FIRMA_STRONA = st.secrets["FIRMA_STRONA"]
+FIRMA_LOGO_URL = st.secrets["FIRMA_LOGO_URL"]
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 client = Groq(api_key=GROQ_KEY)
 
@@ -43,32 +49,32 @@ def append_lead_to_sheet(imie, telefon, email, temat):
     except Exception as e:
         print(f"Nie udało się zapisać do Google Sheets: {e}")
 
-st.set_page_config(page_title="Spark - PS Pro Solutions", layout="centered")
+st.set_page_config(page_title=f"Spark - {FIRMA_NAZWA}", layout="centered")
 
-st.markdown("""
+st.markdown(f"""
 <style>
-    .stApp { background-color: #111111; }
-    .header-wrap { display: flex; align-items: center; gap: 16px; padding: 1.5rem 0 0.5rem 0; }
-    .header-logo img { height: 56px; filter: brightness(0) invert(1); }
-    .header-text .title { font-size: 1.6rem; font-weight: 800; color: #FFD600; letter-spacing: 2px; }
-    .header-text .subtitle { font-size: 0.8rem; color: #888888; letter-spacing: 1px; }
-    .divider { border: none; border-top: 1px solid #FFD600; opacity: 0.25; margin: 0.8rem 0 1.5rem 0; }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
+    .stApp {{ background-color: #111111; }}
+    .header-wrap {{ display: flex; align-items: center; gap: 16px; padding: 1.5rem 0 0.5rem 0; }}
+    .header-logo img {{ height: 56px; filter: brightness(0) invert(1); }}
+    .header-text .title {{ font-size: 1.6rem; font-weight: 800; color: #FFD600; letter-spacing: 2px; }}
+    .header-text .subtitle {{ font-size: 0.8rem; color: #888888; letter-spacing: 1px; }}
+    .divider {{ border: none; border-top: 1px solid #FFD600; opacity: 0.25; margin: 0.8rem 0 1.5rem 0; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {{
         background-color: #FFD600 !important; color: #111111 !important; font-weight: 600;
-        border-radius: 16px 16px 4px 16px; padding: 0.75rem 1rem; }
-    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] {
+        border-radius: 16px 16px 4px 16px; padding: 0.75rem 1rem; }}
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] {{
         background-color: #1C1C1C !important; color: #FFFFFF !important;
-        border: 1px solid #2A2A2A; border-radius: 16px 16px 16px 4px; padding: 0.75rem 1rem; }
-    .stChatInputContainer { background-color: #1C1C1C !important; border: 1.5px solid #FFD600 !important; border-radius: 14px !important; }
-    .stChatInputContainer textarea { color: #FFFFFF !important; background-color: transparent !important; }
-    #MainMenu, header, footer { visibility: hidden; }
-    .block-container { padding-top: 0 !important; }
+        border: 1px solid #2A2A2A; border-radius: 16px 16px 16px 4px; padding: 0.75rem 1rem; }}
+    .stChatInputContainer {{ background-color: #1C1C1C !important; border: 1.5px solid #FFD600 !important; border-radius: 14px !important; }}
+    .stChatInputContainer textarea {{ color: #FFFFFF !important; background-color: transparent !important; }}
+    #MainMenu, header, footer {{ visibility: hidden; }}
+    .block-container {{ padding-top: 0 !important; }}
 </style>
 <div class="header-wrap">
-    <div class="header-logo"><img src="https://ps-pro.pl/images/logo.svg" alt="PS PRO"></div>
+    <div class="header-logo"><img src="{FIRMA_LOGO_URL}" alt="{FIRMA_NAZWA}"></div>
     <div class="header-text">
         <div class="title">SPARK</div>
-        <div class="subtitle">ASYSTENT PS PRO SOLUTIONS</div>
+        <div class="subtitle">ASYSTENT {FIRMA_NAZWA.upper()}</div>
     </div>
 </div>
 <hr class="divider">
@@ -130,12 +136,12 @@ def wyslij_maila(imie, telefon, email_klienta, powrot=False):
     except:
         pass
 
-wiedza = czytaj_strone("https://ps-pro.pl/")
+wiedza = czytaj_strone(FIRMA_STRONA)
 
 SYSTEM_PROMPT = (
-    "Jestes Spark, asystent firmy PS Pro Solutions. "
+    f"Jestes Spark, asystent firmy {FIRMA_NAZWA}. "
     "Odpowiadaj KROTKO — max 2-3 zdania. "
-    "Firma zajmuje sie swiadectwami energetycznymi i audytami. "
+    f"Firma zajmuje sie {FIRMA_BRANZA}. "
     "ZAWSZE pros o dane: imie, telefon, email. "
     "Gdy klient poda imie I telefon I email napisz: KONTAKT|imie|telefon|email "
     "Wiedza: " + wiedza[:3000]
