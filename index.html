@@ -58,6 +58,7 @@
     100% { opacity: 1; }
   }
   .status { margin-top: 14px; font-size: 0.85rem; color: #888; min-height: 20px; text-align: center; }
+  .interim { margin-top: 6px; font-size: 0.8rem; color: #FFD600; min-height: 18px; text-align: center; font-style: italic; }
 
   .chat { width: 100%; max-width: 560px; flex: 1; }
   .bubble {
@@ -93,6 +94,7 @@
   <div class="mic-wrap">
     <button class="mic-btn" id="micBtn">🎤</button>
     <div class="status" id="status">Kliknij mikrofon i powiedz coś</div>
+    <div class="interim" id="interim"></div>
   </div>
 
   <hr class="divider">
@@ -110,6 +112,7 @@ let historiaRozmowy = [];
 // ====== ELEMENTY ======
 const micBtn = document.getElementById('micBtn');
 const statusEl = document.getElementById('status');
+const interimEl = document.getElementById('interim');
 const chatEl = document.getElementById('chat');
 const errorBox = document.getElementById('errorBox');
 const btnKlient = document.getElementById('btnKlient');
@@ -146,18 +149,22 @@ function addBubble(text, who) {
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
-  showError("Ta przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome.");
+  showError("Ta przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome lub Safari.");
   micBtn.disabled = true;
 } else {
   const recognition = new SpeechRecognition();
   recognition.lang = 'pl-PL';
   recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
 
   let listening = false;
+  let finalTranscriptHandled = false;
 
   micBtn.addEventListener('click', () => {
     if (listening) return;
+    finalTranscriptHandled = false;
+    interimEl.textContent = '';
     try {
       recognition.start();
     } catch (e) {
@@ -176,7 +183,7 @@ if (!SpeechRecognition) {
     listening = false;
     micBtn.classList.remove('listening');
     if (e.error === 'not-allowed' || e.error === 'permission-denied') {
-      showError("Brak dostępu do mikrofonu. Zezwól i odśwież stronę.");
+      showError("Brak dostępu do mikrofonu. Wejdź w Ustawienia Safari → Mikrofon i zezwól, potem odśwież stronę.");
     } else if (e.error === 'no-speech') {
       statusEl.textContent = "Nie usłyszałem nic — spróbuj ponownie.";
     } else {
@@ -187,12 +194,33 @@ if (!SpeechRecognition) {
   recognition.onend = () => {
     listening = false;
     micBtn.classList.remove('listening');
+    interimEl.textContent = '';
   };
 
   recognition.onresult = async (event) => {
-    const text = event.results[0][0].transcript;
-    addBubble(text, 'user');
-    await wyslijDoMozguSparka(text);
+    let interimText = '';
+    let finalText = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += transcript;
+      } else {
+        interimText += transcript;
+      }
+    }
+
+    if (interimText) {
+      interimEl.textContent = interimText;
+    }
+
+    if (finalText && !finalTranscriptHandled) {
+      finalTranscriptHandled = true;
+      interimEl.textContent = '';
+      recognition.stop();
+      addBubble(finalText, 'user');
+      await wyslijDoMozguSparka(finalText);
+    }
   };
 }
 
