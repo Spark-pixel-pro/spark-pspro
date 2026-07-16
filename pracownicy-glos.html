@@ -90,7 +90,7 @@
 
   <div class="header">
     <div class="title">SPARK</div>
-    <div class="subtitle">PANEL PRACOWNIKÓW — GŁOS</div>
+    <div class="subtitle" id="subtitleEl">PANEL PRACOWNIKÓW — GŁOS</div>
   </div>
 
   <div class="pin-wrap" id="pinWrap">
@@ -113,9 +113,17 @@
   </div>
 
 <script>
-// ====== KONFIGURACJA ======
+// ============================================
+// 🔧 KONFIGURACJA — EDYTUJ TUTAJ DLA NOWEGO KLIENTA
+// ============================================
+const NAZWA_FIRMY = "PS PRO Solutions";
 const EDGE_FUNCTION_URL = "https://kmxmgxiobhcovrvvcdqh.supabase.co/functions/v1/bright-api";
 const SUPABASE_ANON_KEY = "sb_publishable_FiS3WrWInHeqakBWl8mr6A_aVC4IJ32";
+// ============================================
+
+document.title = "Spark — Panel Pracowników — " + NAZWA_FIRMY;
+document.getElementById('subtitleEl').textContent = "PANEL PRACOWNIKÓW — " + NAZWA_FIRMY.toUpperCase();
+
 const CISZA_TIMEOUT_MS = 1500;
 const TRYB = "pracownik";
 
