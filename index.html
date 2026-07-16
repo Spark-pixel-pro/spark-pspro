@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spark — PS PRO Solutions</title>
+<title>Spark</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -72,7 +72,7 @@
 
   <div class="header">
     <div class="title">SPARK</div>
-    <div class="subtitle">PS PRO SOLUTIONS — ASYSTENT GŁOSOWY</div>
+    <div class="subtitle" id="subtitleEl">ASYSTENT</div>
   </div>
 
   <div class="error-box" id="errorBox"></div>
@@ -87,9 +87,17 @@
   <div class="chat" id="chat"></div>
 
 <script>
-// ====== KONFIGURACJA ======
+// ============================================
+// 🔧 KONFIGURACJA — EDYTUJ TUTAJ DLA NOWEGO KLIENTA
+// ============================================
+const NAZWA_FIRMY = "PS PRO Solutions";
 const EDGE_FUNCTION_URL = "https://kmxmgxiobhcovrvvcdqh.supabase.co/functions/v1/bright-api";
 const SUPABASE_ANON_KEY = "sb_publishable_FiS3WrWInHeqakBWl8mr6A_aVC4IJ32";
+// ============================================
+
+document.title = "Spark — " + NAZWA_FIRMY;
+document.getElementById('subtitleEl').textContent = NAZWA_FIRMY.toUpperCase() + " — ASYSTENT GŁOSOWY";
+
 const CISZA_TIMEOUT_MS = 1500;
 const TRYB = "klient";
 
