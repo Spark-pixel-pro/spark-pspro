@@ -167,7 +167,6 @@ if (!SpeechRecognition) {
   micBtn.addEventListener('click', () => {
     if (listening) return;
 
-    // Odblokowanie syntezy mowy na iOS Safari — musi się wydarzyć bezpośrednio przy kliknięciu
     if (window.speechSynthesis) {
       const cichaProbka = new SpeechSynthesisUtterance(' ');
       window.speechSynthesis.speak(cichaProbka);
@@ -294,31 +293,68 @@ async function wyslijDoMozguSparka(wiadomosc) {
 }
 
 // ====== SYNTEZA MOWY ======
+let glosyZaladowane = false;
+let dostepneGlosy = [];
+
+function zaladujGlosy() {
+  dostepneGlosy = window.speechSynthesis.getVoices();
+  if (dostepneGlosy.length > 0) {
+    glosyZaladowane = true;
+  }
+}
+
+if (window.speechSynthesis) {
+  zaladujGlosy();
+  window.speechSynthesis.onvoiceschanged = zaladujGlosy;
+}
+
 function speak(text) {
   if (!window.speechSynthesis) {
     showError("Ta przeglądarka nie obsługuje syntezy mowy.");
     return;
   }
+
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'pl-PL';
-  utterance.rate = 1.0;
 
-  utterance.onerror = (e) => {
-    showError("Błąd syntezy mowy: " + e.error);
-  };
-  utterance.onstart = () => {
-    statusEl.textContent = "🔊 Spark mówi...";
-  };
-  utterance.onend = () => {
-    statusEl.textContent = trybAktywny === 'klient'
-      ? 'Kliknij mikrofon i powiedz coś'
-      : 'Zapytaj o procedurę lub przykład';
-  };
+  const probojUruchomic = () => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pl-PL';
+    utterance.rate = 1.0;
 
-  setTimeout(() => {
+    const glosPolski = dostepneGlosy.find(g => g.lang.startsWith('pl'));
+    if (glosPolski) {
+      utterance.voice = glosPolski;
+    }
+
+    let odpaliloSie = false;
+
+    utterance.onstart = () => {
+      odpaliloSie = true;
+      statusEl.textContent = "🔊 Spark mówi...";
+    };
+    utterance.onerror = (e) => {
+      showError("Błąd syntezy mowy: " + e.error + " (głosów dostępnych: " + dostepneGlosy.length + ")");
+    };
+    utterance.onend = () => {
+      statusEl.textContent = trybAktywny === 'klient'
+        ? 'Kliknij mikrofon i powiedz coś'
+        : 'Zapytaj o procedurę lub przykład';
+    };
+
     window.speechSynthesis.speak(utterance);
-  }, 100);
+
+    setTimeout(() => {
+      if (!odpaliloSie) {
+        showError("Synteza mowy nie uruchomiła się w ciągu 1s. Dostępnych głosów: " + dostepneGlosy.length + ". Spróbuj kliknąć mikrofon ponownie.");
+      }
+    }, 1000);
+  };
+
+  if (glosyZaladowane) {
+    probojUruchomic();
+  } else {
+    setTimeout(probojUruchomic, 300);
+  }
 }
 </script>
 
