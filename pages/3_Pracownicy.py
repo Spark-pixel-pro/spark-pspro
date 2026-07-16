@@ -15,6 +15,21 @@ cohere_client = cohere.Client(COHERE_API_KEY)
 
 st.set_page_config(page_title="Spark - Panel Pracowników", layout="centered")
 
+# ====== OCHRONA HASŁEM (PRACOWNICY) ======
+if "zalogowany_pracownik" not in st.session_state:
+    st.session_state.zalogowany_pracownik = False
+
+if not st.session_state.zalogowany_pracownik:
+    st.title("🔒 Panel pracowników — logowanie")
+    haslo = st.text_input("Hasło:", type="password")
+    if st.button("Zaloguj"):
+        if haslo == st.secrets["PRACOWNICY_HASLO"]:
+            st.session_state.zalogowany_pracownik = True
+            st.rerun()
+        else:
+            st.error("Nieprawidłowe hasło")
+    st.stop()
+
 st.markdown("""
 <style>
     .stApp { background-color: #111111; }
