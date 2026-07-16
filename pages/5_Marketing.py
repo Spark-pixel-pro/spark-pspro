@@ -74,7 +74,7 @@ Szukaj: aktualnych trendów, dobrych praktyk dla tego typu treści, ewentualnie 
 Odpowiedz krótko, w punktach, po polsku. Maksymalnie 5-6 punktów."""
 
     completion = groq_client.chat.completions.create(
-        model="compound-beta",
+        model="groq/compound",
         messages=[{"role": "user", "content": prompt}]
     )
     return completion.choices[0].message.content
