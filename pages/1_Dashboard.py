@@ -4,10 +4,26 @@ import pandas as pd
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+FIRMA_NAZWA = st.secrets["FIRMA_NAZWA"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="Spark - Dashboard", layout="wide")
+
+# ====== OCHRONA HASŁEM (ADMIN) ======
+if "zalogowany_admin" not in st.session_state:
+    st.session_state.zalogowany_admin = False
+
+if not st.session_state.zalogowany_admin:
+    st.title("🔒 Dostęp ograniczony")
+    haslo = st.text_input("Hasło administratora:", type="password")
+    if st.button("Zaloguj"):
+        if haslo == st.secrets["ADMIN_HASLO"]:
+            st.session_state.zalogowany_admin = True
+            st.rerun()
+        else:
+            st.error("Nieprawidłowe hasło")
+    st.stop()
 
 st.markdown("""
 <style>
@@ -20,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📊 Dashboard Sparka")
-st.caption("Podgląd wszystkich klientów i rozmów zapisanych w bazie")
+st.caption(f"Podgląd wszystkich klientów i rozmów zapisanych w bazie — {FIRMA_NAZWA}")
 
 response = supabase.table("klienci").select("*").execute()
 data = response.data
@@ -30,7 +46,6 @@ if not data:
 else:
     df = pd.DataFrame(data)
     df["ostatnia_wizyta"] = pd.to_datetime(df["ostatnia_wizyta"])
-
     total_clients = len(df)
     total_visits = int(df["liczba_wizyt"].sum())
     returning = int((df["liczba_wizyt"] > 1).sum())
