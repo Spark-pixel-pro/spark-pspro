@@ -169,7 +169,7 @@ if (!SpeechRecognition) {
 
     // Odblokowanie syntezy mowy na iOS Safari — musi się wydarzyć bezpośrednio przy kliknięciu
     if (window.speechSynthesis) {
-      const cichaProbka = new SpeechSynthesisUtterance('');
+      const cichaProbka = new SpeechSynthesisUtterance(' ');
       window.speechSynthesis.speak(cichaProbka);
     }
 
@@ -285,9 +285,6 @@ async function wyslijDoMozguSparka(wiadomosc) {
 
     addBubble(odpowiedz, 'spark');
     speak(odpowiedz);
-    statusEl.textContent = trybAktywny === 'klient'
-      ? 'Kliknij mikrofon i powiedz coś'
-      : 'Zapytaj o procedurę lub przykład';
   } catch (err) {
     showError("Nie udało się połączyć ze Sparkiem: " + err.message);
     statusEl.textContent = "Kliknij mikrofon i powiedz coś";
@@ -298,12 +295,30 @@ async function wyslijDoMozguSparka(wiadomosc) {
 
 // ====== SYNTEZA MOWY ======
 function speak(text) {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) {
+    showError("Ta przeglądarka nie obsługuje syntezy mowy.");
+    return;
+  }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'pl-PL';
   utterance.rate = 1.0;
-  window.speechSynthesis.speak(utterance);
+
+  utterance.onerror = (e) => {
+    showError("Błąd syntezy mowy: " + e.error);
+  };
+  utterance.onstart = () => {
+    statusEl.textContent = "🔊 Spark mówi...";
+  };
+  utterance.onend = () => {
+    statusEl.textContent = trybAktywny === 'klient'
+      ? 'Kliknij mikrofon i powiedz coś'
+      : 'Zapytaj o procedurę lub przykład';
+  };
+
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance);
+  }, 100);
 }
 </script>
 
