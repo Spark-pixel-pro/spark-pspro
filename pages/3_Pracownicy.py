@@ -185,4 +185,13 @@ if question:
             st.markdown(answer)
 
             if chunks:
-                with
+                with st.expander("📄 Źródła użyte do odpowiedzi"):
+                    unique_sources = set(c["zrodlo"] for c in chunks)
+                    for source in sorted(unique_sources):
+                        st.write(f"- {source}")
+
+    st.session_state.employee_messages.append({"role": "assistant", "content": answer})
+
+    if BRAK_ODPOWIEDZI_TEKST in answer:
+        st.session_state.pending_web_question = question
+        st.rerun()
