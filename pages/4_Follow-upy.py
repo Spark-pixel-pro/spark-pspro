@@ -12,11 +12,27 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 GROQ_KEY = st.secrets["GROQ_API_KEY"]
 GMAIL_EMAIL = st.secrets["GMAIL_EMAIL"]
 GMAIL_HASLO = st.secrets["GMAIL_HASLO"]
+FIRMA_NAZWA = st.secrets["FIRMA_NAZWA"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_KEY)
 
 st.set_page_config(page_title="Spark - Follow-upy", layout="wide")
+
+# ====== OCHRONA HASŁEM (ADMIN) ======
+if "zalogowany_admin" not in st.session_state:
+    st.session_state.zalogowany_admin = False
+
+if not st.session_state.zalogowany_admin:
+    st.title("🔒 Dostęp ograniczony")
+    haslo = st.text_input("Hasło administratora:", type="password")
+    if st.button("Zaloguj"):
+        if haslo == st.secrets["ADMIN_HASLO"]:
+            st.session_state.zalogowany_admin = True
+            st.rerun()
+        else:
+            st.error("Nieprawidłowe hasło")
+    st.stop()
 
 st.markdown("""
 <style>
@@ -30,14 +46,13 @@ st.caption("Klienci bez odpowiedzi od 24h+ — sprawdź gotową treść i wyśli
 
 
 def generuj_tresc_maila(imie, zainteresowania):
-    prompt = f"""Napisz krótki, ciepły ale profesjonalny mail przypominający do klienta firmy PS PRO Solutions
-(świadectwa charakterystyki energetycznej budynków).
+    prompt = f"""Napisz krótki, ciepły ale profesjonalny mail przypominający do klienta firmy {FIRMA_NAZWA}.
 
 Klient: {imie}
 Rozmawiał wcześniej o: {zainteresowania}
 
 Klient napisał do nas, ale nie sfinalizował zamówienia. Napisz przypomnienie, zapytaj czy nadal jest zainteresowany,
-zaproponuj kontakt. Maksymalnie 4-5 zdań. Podpisz jako "Zespół PS PRO Solutions". Nie dodawaj tematu maila, tylko treść."""
+zaproponuj kontakt. Maksymalnie 4-5 zdań. Podpisz jako "Zespół {FIRMA_NAZWA}". Nie dodawaj tematu maila, tylko treść."""
 
     completion = groq_client.chat.completions.create(
         model="openai/gpt-oss-120b",
@@ -51,7 +66,7 @@ def wyslij_email_do_klienta(email_klienta, tresc, imie):
         msg = MIMEMultipart()
         msg["From"] = GMAIL_EMAIL
         msg["To"] = email_klienta
-        msg["Subject"] = "PS PRO Solutions — czy nadal jesteś zainteresowany/a?"
+        msg["Subject"] = f"{FIRMA_NAZWA} — czy nadal jesteś zainteresowany/a?"
         msg.attach(MIMEText(tresc, "plain"))
 
         server = smtplib.SMTP("smtp.gmail.com", 587)
