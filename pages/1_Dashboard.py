@@ -45,7 +45,7 @@ if not data:
     st.info("Baza jest jeszcze pusta — nikt nie rozmawiał ze Sparkiem od strony zapisu do bazy.")
 else:
     df = pd.DataFrame(data)
-    df["ostatnia_wizyta"] = pd.to_datetime(df["ostatnia_wizyta"])
+    df["ostatnia_wizyta"] = pd.to_datetime(df["ostatnia_wizyta"], errors="coerce")
     total_clients = len(df)
     total_visits = int(df["liczba_wizyt"].sum())
     returning = int((df["liczba_wizyt"] > 1).sum())
@@ -56,8 +56,12 @@ else:
     col3.metric("Powracający klienci", returning)
 
     st.subheader("Wizyty w czasie")
-    df_by_day = df.groupby(df["ostatnia_wizyta"].dt.date).size()
-    st.bar_chart(df_by_day)
+    df_z_data = df.dropna(subset=["ostatnia_wizyta"])
+    if not df_z_data.empty:
+        df_by_day = df_z_data.groupby(df_z_data["ostatnia_wizyta"].dt.date).size()
+        st.bar_chart(df_by_day)
+    else:
+        st.write("Brak danych o datach wizyt.")
 
     st.subheader("Najczęstsze zainteresowania klientów")
     interests = df["zainteresowania"].dropna()
