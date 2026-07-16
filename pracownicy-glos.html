@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spark — Panel Pracowników</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #111111;
+    color: #f0f0f0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+  .header { text-align: center; margin-bottom: 20px; }
+  .header .title { font-size: 1.8rem; font-weight: 800; color: #4A9EFF; letter-spacing: 2px; }
+  .header .subtitle { font-size: 0.85rem; color: #888; letter-spacing: 1px; margin-top: 4px; }
+
+  .pin-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    margin-top: 60px; gap: 16px; width: 100%; max-width: 320px;
+  }
+  .pin-input {
+    width: 100%; padding: 14px; border-radius: 10px; border: 2px solid #333;
+    background: #1a1a1a; color: #f0f0f0; font-size: 1.2rem; text-align: center;
+    letter-spacing: 4px;
+  }
+  .pin-input:focus { outline: none; border-color: #4A9EFF; }
+  .pin-btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    background: #4A9EFF; color: #111; font-weight: 700; font-size: 1rem; cursor: pointer;
+  }
+  .pin-error { color: #ff9a9a; font-size: 0.85rem; text-align: center; min-height: 18px; }
+
+  .mic-wrap { display: flex; flex-direction: column; align-items: center; margin: 24px 0; }
+  .mic-btn {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: #1a1a1a; border: 3px solid #4A9EFF;
+    font-size: 40px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .mic-btn:active { transform: scale(0.95); }
+  .mic-btn.listening {
+    background: #4A9EFF;
+    animation: pulse 1.2s infinite;
+  }
+  .mic-btn.thinking {
+    background: #FFD600;
+    border-color: #FFD600;
+    animation: spin-pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(74,158,255,0.5); }
+    70% { box-shadow: 0 0 0 20px rgba(74,158,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,158,255,0); }
+  }
+  @keyframes spin-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  .status { margin-top: 14px; font-size: 0.85rem; color: #888; min-height: 20px; text-align: center; }
+  .interim { margin-top: 6px; font-size: 0.8rem; color: #4A9EFF; min-height: 18px; text-align: center; font-style: italic; }
+
+  .chat { width: 100%; max-width: 560px; flex: 1; display: none; }
+  .bubble {
+    padding: 12px 16px; border-radius: 14px; margin-bottom: 10px;
+    font-size: 0.95rem; line-height: 1.4; max-width: 85%;
+  }
+  .bubble.user { background: #4A9EFF; color: #111; margin-left: auto; font-weight: 600; }
+  .bubble.spark { background: #222; color: #f0f0f0; margin-right: auto; }
+
+  .divider { width: 100%; max-width: 560px; border: none; border-top: 1px solid #333; margin: 4px 0 16px; display: none; }
+
+  .error-box {
+    background: #3a1f1f; color: #ff9a9a; padding: 12px 16px;
+    border-radius: 10px; font-size: 0.85rem; max-width: 560px; width: 100%;
+    display: none; margin-bottom: 16px;
+  }
+
+  #glownaTresc { display: none; width: 100%; flex-direction: column; align-items: center; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title">SPARK</div>
+    <div class="subtitle">PANEL PRACOWNIKÓW — GŁOS</div>
+  </div>
+
+  <div class="pin-wrap" id="pinWrap">
+    <input type="password" inputmode="numeric" class="pin-input" id="pinInput" placeholder="Wpisz PIN" maxlength="10">
+    <button class="pin-btn" id="pinBtn">Wejdź</button>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+
+  <div id="glownaTresc">
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micBtn">🎤</button>
+      <div class="status" id="status">Zapytaj o procedurę lub przykład</div>
+      <div class="interim" id="interim"></div>
+    </div>
+
+    <hr class="divider" id="divider">
+    <div class="chat" id="chat"></div>
+  </div>
+
+<script>
+// ====== KONFIGURACJA ======
+const EDGE_FUNCTION_URL = "https://kmxmgxiobhcovrvvcdqh.supabase.co/functions/v1/bright-api";
+const SUPABASE_ANON_KEY = "sb_publishable_FiS3WrWInHeqakBWl8mr6A_aVC4IJ32";
+const CISZA_TIMEOUT_MS = 1500;
+const TRYB = "pracownik";
+
+// ====== STAN ======
+let historiaRozmowy = [];
+let pinPracownika = "";
+
+// ====== ELEMENTY ======
+const pinWrap = document.getElementById('pinWrap');
+const pinInput = document.getElementById('pinInput');
+const pinBtn = document.getElementById('pinBtn');
+const pinError = document.getElementById('pinError');
+const glownaTresc = document.getElementById('glownaTresc');
+const chatEl2 = document.getElementById('chat');
+const dividerEl = document.getElementById('divider');
+
+const micBtn = document.getElementById('micBtn');
+const statusEl = document.getElementById('status');
+const interimEl = document.getElementById('interim');
+const errorBox = document.getElementById('errorBox');
+
+pinBtn.addEventListener('click', sprawdzPin);
+pinInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sprawdzPin();
+});
+
+async function sprawdzPin() {
+  const wpisanyPin = pinInput.value.trim();
+  if (!wpisanyPin) return;
+
+  pinBtn.disabled = true;
+  pinBtn.textContent = "Sprawdzam...";
+  pinError.textContent = "";
+
+  try {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        wiadomosc: "test dostepu",
+        tryb: TRYB,
+        historia: [],
+        pin: wpisanyPin
+      })
+    });
+
+    if (response.status === 403) {
+      pinError.textContent = "Nieprawidłowy PIN";
+      pinBtn.disabled = false;
+      pinBtn.textContent = "Wejdź";
+      return;
+    }
+
+    if (!response.ok) {
+      pinError.textContent = "Błąd połączenia, spróbuj ponownie";
+      pinBtn.disabled = false;
+      pinBtn.textContent = "Wejdź";
+      return;
+    }
+
+    pinPracownika = wpisanyPin;
+    pinWrap.style.display = 'none';
+    glownaTresc.style.display = 'flex';
+    dividerEl.style.display = 'block';
+    chatEl2.style.display = 'block';
+
+  } catch (err) {
+    pinError.textContent = "Błąd połączenia: " + err.message;
+    pinBtn.disabled = false;
+    pinBtn.textContent = "Wejdź";
+  }
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+}
+
+function addBubble(text, who) {
+  const div = document.createElement('div');
+  div.className = 'bubble ' + who;
+  div.textContent = text;
+  chatEl2.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ====== ROZPOZNAWANIE MOWY ======
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (!SpeechRecognition) {
+  showError("Ta przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome lub Safari.");
+  micBtn.disabled = true;
+} else {
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'pl-PL';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  let listening = false;
+  let przetworzone = false;
+  let ostatniTekst = '';
+  let timerCiszy = null;
+
+  micBtn.addEventListener('click', () => {
+    if (listening) return;
+
+    if (window.speechSynthesis) {
+      const cichaProbka = new SpeechSynthesisUtterance(' ');
+      window.speechSynthesis.speak(cichaProbka);
+    }
+
+    przetworzone = false;
+    ostatniTekst = '';
+    interimEl.textContent = '';
+    try {
+      recognition.start();
+    } catch (e) {
+      showError("Nie udało się uruchomić mikrofonu: " + e.message);
+    }
+  });
+
+  recognition.onstart = () => {
+    listening = true;
+    micBtn.classList.add('listening');
+    statusEl.textContent = "Słucham...";
+    errorBox.style.display = 'none';
+  };
+
+  recognition.onerror = (e) => {
+    listening = false;
+    micBtn.classList.remove('listening');
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      showError("Brak dostępu do mikrofonu. Wejdź w Ustawienia Safari → Mikrofon i zezwól, potem odśwież stronę.");
+    } else if (e.error === 'no-speech') {
+      statusEl.textContent = "Nie usłyszałem nic — spróbuj ponownie.";
+    } else {
+      showError("Błąd mikrofonu: " + e.error);
+    }
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    micBtn.classList.remove('listening');
+    if (timerCiszy) clearTimeout(timerCiszy);
+
+    if (!przetworzone && ostatniTekst.trim()) {
+      przetworzone = true;
+      const tekst = ostatniTekst.trim();
+      interimEl.textContent = '';
+      addBubble(tekst, 'user');
+      wyslijDoMozguSparka(tekst);
+    }
+  };
+
+  recognition.onresult = (event) => {
+    let interimText = '';
+    let finalText = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += transcript;
+      } else {
+        interimText += transcript;
+      }
+    }
+
+    const aktualnyTekst = finalText || interimText;
+    if (aktualnyTekst) {
+      ostatniTekst = aktualnyTekst;
+      interimEl.textContent = aktualnyTekst;
+    }
+
+    if (timerCiszy) clearTimeout(timerCiszy);
+    timerCiszy = setTimeout(() => {
+      if (!przetworzone) {
+        recognition.stop();
+      }
+    }, CISZA_TIMEOUT_MS);
+
+    if (finalText && !przetworzone) {
+      przetworzone = true;
+      interimEl.textContent = '';
+      recognition.stop();
+      addBubble(finalText, 'user');
+      wyslijDoMozguSparka(finalText);
+    }
+  };
+}
+
+// ====== WYSYŁKA DO SPARK-BRAIN ======
+async function wyslijDoMozguSparka(wiadomosc) {
+  micBtn.classList.add('thinking');
+  statusEl.textContent = "Spark myśli...";
+
+  try {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        wiadomosc: wiadomosc,
+        tryb: TRYB,
+        historia: historiaRozmowy,
+        pin: pinPracownika
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error("Błąd serwera (" + response.status + "): " + errText);
+    }
+
+    const data = await response.json();
+    const odpowiedz = data.odpowiedz;
+
+    historiaRozmowy.push({ role: "user", content: wiadomosc });
+    historiaRozmowy.push({ role: "assistant", content: odpowiedz });
+
+    addBubble(odpowiedz, 'spark');
+    speak(odpowiedz);
+  } catch (err) {
+    showError("Nie udało się połączyć ze Sparkiem: " + err.message);
+    statusEl.textContent = "Zapytaj o procedurę lub przykład";
+  } finally {
+    micBtn.classList.remove('thinking');
+  }
+}
+
+// ====== SYNTEZA MOWY ======
+let glosyZaladowane = false;
+let dostepneGlosy = [];
+
+function zaladujGlosy() {
+  dostepneGlosy = window.speechSynthesis.getVoices();
+  if (dostepneGlosy.length > 0) {
+    glosyZaladowane = true;
+  }
+}
+
+if (window.speechSynthesis) {
+  zaladujGlosy();
+  window.speechSynthesis.onvoiceschanged = zaladujGlosy;
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) {
+    showError("Ta przeglądarka nie obsługuje syntezy mowy.");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const probojUruchomic = () => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pl-PL';
+    utterance.rate = 1.0;
+
+    const glosPolski = dostepneGlosy.find(g => g.lang.startsWith('pl'));
+    if (glosPolski) {
+      utterance.voice = glosPolski;
+    }
+
+    let odpaliloSie = false;
+
+    utterance.onstart = () => {
+      odpaliloSie = true;
+      statusEl.textContent = "🔊 Spark mówi...";
+    };
+    utterance.onerror = (e) => {
+      showError("Błąd syntezy mowy: " + e.error);
+    };
+    utterance.onend = () => {
+      statusEl.textContent = 'Zapytaj o procedurę lub przykład';
+    };
+
+    window.speechSynthesis.speak(utterance);
+
+    setTimeout(() => {
+      if (!odpaliloSie) {
+        showError("Synteza mowy nie uruchomiła się. Spróbuj kliknąć mikrofon ponownie.");
+      }
+    }, 1000);
+  };
+
+  if (glosyZaladowane) {
+    probojUruchomic();
+  } else {
+    setTimeout(probojUruchomic, 300);
+  }
+}
+</script>
+
+</body>
+</html>
