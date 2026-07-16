@@ -104,6 +104,7 @@
 // ====== KONFIGURACJA ======
 const EDGE_FUNCTION_URL = "https://kmxmgxiobhcovrvvcdqh.supabase.co/functions/v1/bright-api";
 const SUPABASE_ANON_KEY = "sb_publishable_FiS3WrWInHeqakBWl8mr6A_aVC4IJ32";
+const CISZA_TIMEOUT_MS = 1500;
 
 // ====== STAN ======
 let trybAktywny = "klient";
@@ -159,11 +160,14 @@ if (!SpeechRecognition) {
   recognition.maxAlternatives = 1;
 
   let listening = false;
-  let finalTranscriptHandled = false;
+  let przetworzone = false;
+  let ostatniTekst = '';
+  let timerCiszy = null;
 
   micBtn.addEventListener('click', () => {
     if (listening) return;
-    finalTranscriptHandled = false;
+    przetworzone = false;
+    ostatniTekst = '';
     interimEl.textContent = '';
     try {
       recognition.start();
@@ -194,10 +198,18 @@ if (!SpeechRecognition) {
   recognition.onend = () => {
     listening = false;
     micBtn.classList.remove('listening');
-    interimEl.textContent = '';
+    if (timerCiszy) clearTimeout(timerCiszy);
+
+    if (!przetworzone && ostatniTekst.trim()) {
+      przetworzone = true;
+      const tekst = ostatniTekst.trim();
+      interimEl.textContent = '';
+      addBubble(tekst, 'user');
+      wyslijDoMozguSparka(tekst);
+    }
   };
 
-  recognition.onresult = async (event) => {
+  recognition.onresult = (event) => {
     let interimText = '';
     let finalText = '';
 
@@ -210,16 +222,25 @@ if (!SpeechRecognition) {
       }
     }
 
-    if (interimText) {
-      interimEl.textContent = interimText;
+    const aktualnyTekst = finalText || interimText;
+    if (aktualnyTekst) {
+      ostatniTekst = aktualnyTekst;
+      interimEl.textContent = aktualnyTekst;
     }
 
-    if (finalText && !finalTranscriptHandled) {
-      finalTranscriptHandled = true;
+    if (timerCiszy) clearTimeout(timerCiszy);
+    timerCiszy = setTimeout(() => {
+      if (!przetworzone) {
+        recognition.stop();
+      }
+    }, CISZA_TIMEOUT_MS);
+
+    if (finalText && !przetworzone) {
+      przetworzone = true;
       interimEl.textContent = '';
       recognition.stop();
       addBubble(finalText, 'user');
-      await wyslijDoMozguSparka(finalText);
+      wyslijDoMozguSparka(finalText);
     }
   };
 }
