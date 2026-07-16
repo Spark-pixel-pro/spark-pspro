@@ -8,6 +8,7 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 COHERE_API_KEY = st.secrets["COHERE_API_KEY"]
+FIRMA_NAZWA = st.secrets["FIRMA_NAZWA"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -38,8 +39,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("👷 Spark — Panel Pracowników")
-st.caption("Asystent wewnętrzny PS PRO Solutions")
+st.title(f"👷 Spark — Panel Pracowników")
+st.caption(f"Asystent wewnętrzny {FIRMA_NAZWA}")
 
 BRAK_ODPOWIEDZI_TEKST = "Nie znalazłem tej informacji w bazie wiedzy"
 
@@ -105,7 +106,7 @@ def build_context(chunks):
     return "\n\n---\n\n".join(parts)
 
 
-SYSTEM_PROMPT = f"""Jesteś Spark, wewnętrznym asystentem pracownikow firmy PS PRO Solutions, zajmującej się świadectwami charakterystyki energetycznej budynkow.
+SYSTEM_PROMPT = f"""Jesteś Spark, wewnętrznym asystentem pracownikow firmy {FIRMA_NAZWA}.
 
 Zasady:
 - Odpowiadaj WYŁĄCZNIE na podstawie dostarczonego kontekstu z bazy wiedzy firmy.
@@ -184,13 +185,4 @@ if question:
             st.markdown(answer)
 
             if chunks:
-                with st.expander("📄 Źródła użyte do odpowiedzi"):
-                    unique_sources = set(c["zrodlo"] for c in chunks)
-                    for source in sorted(unique_sources):
-                        st.write(f"- {source}")
-
-    st.session_state.employee_messages.append({"role": "assistant", "content": answer})
-
-    if BRAK_ODPOWIEDZI_TEKST in answer:
-        st.session_state.pending_web_question = question
-        st.rerun()
+                with
