@@ -166,6 +166,13 @@ if (!SpeechRecognition) {
 
   micBtn.addEventListener('click', () => {
     if (listening) return;
+
+    // Odblokowanie syntezy mowy na iOS Safari — musi się wydarzyć bezpośrednio przy kliknięciu
+    if (window.speechSynthesis) {
+      const cichaProbka = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(cichaProbka);
+    }
+
     przetworzone = false;
     ostatniTekst = '';
     interimEl.textContent = '';
