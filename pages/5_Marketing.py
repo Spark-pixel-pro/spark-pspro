@@ -90,11 +90,15 @@ def research_w_internecie(temat, platforma):
 Szukaj: aktualnych trendów, dobrych praktyk dla tego typu treści, ewentualnie ciekawych faktów lub statystyk związanych z tematem.
 Odpowiedz krótko, w punktach, po polsku. Maksymalnie 5-6 punktów."""
 
-    completion = groq_client.chat.completions.create(
-        model="groq/compound",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return completion.choices[0].message.content
+    try:
+        completion = groq_client.chat.completions.create(
+            model="groq/compound-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        st.warning(f"⚠️ Nie udało się pobrać danych z internetu (spróbuj ponownie za chwilę): {e}")
+        return ""
 
 
 def pobierz_wzorzec_stylu(platforma):
