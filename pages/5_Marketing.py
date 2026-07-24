@@ -6,12 +6,14 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
+import io
 from datetime import datetime
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 COHERE_API_KEY = st.secrets["COHERE_API_KEY"]
+STABILITY_API_KEY = st.secrets["STABILITY_API_KEY"]
 FIRMA_NAZWA = st.secrets["FIRMA_NAZWA"]
 FIRMA_STRONA = st.secrets["FIRMA_STRONA"]
 
@@ -45,7 +47,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📢 Generator treści marketingowych")
-st.caption(f"Twórz posty, planuj kalendarz i baw się treścią dla {FIRMA_NAZWA}")
+st.caption(f"Twórz posty, obrazy, planuj kalendarz i baw się treścią dla {FIRMA_NAZWA}")
 
 
 # ====== FUNKCJE POMOCNICZE ======
@@ -180,6 +182,45 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, jako lista obiektów z kluczami: temat,
         return []
 
 
+def generuj_prompt_obrazu(temat, platforma):
+    prompt = f"""Na podstawie tego tematu posta marketingowego: "{temat}" (platforma: {platforma}, firma: {FIRMA_NAZWA})
+
+Napisz KRÓTKI, konkretny prompt PO ANGIELSKU do generatora obrazów AI, opisujący profesjonalne, atrakcyjne zdjęcie pasujące do tego posta.
+
+Zasady:
+- Tylko opis wizualny sceny, stylu, oświetlenia — bez tekstu do wstawienia w obraz
+- Styl: profesjonalna fotografia biznesowa/marketingowa, naturalne światło, czysta kompozycja
+- Maksymalnie 2-3 zdania
+- Odpowiedz WYŁĄCZNIE samym promptem, bez żadnych dodatkowych komentarzy"""
+
+    completion = groq_client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return completion.choices[0].message.content.strip()
+
+
+def generuj_obraz(prompt_obrazu):
+    response = requests.post(
+        "https://api.stability.ai/v2beta/stable-image/generate/core",
+        headers={
+            "Authorization": f"Bearer {STABILITY_API_KEY}",
+            "Accept": "image/*"
+        },
+        files={"none": ""},
+        data={
+            "prompt": prompt_obrazu,
+            "output_format": "png",
+            "aspect_ratio": "1:1"
+        }
+    )
+
+    if response.status_code == 200:
+        return response.content
+    else:
+        raise Exception(f"Błąd generowania obrazu ({response.status_code}): {response.text}")
+
+
 # ====== ZAKŁADKI ======
 tab1, tab2, tab3 = st.tabs(["✨ Generator treści", "🎨 Wzorce stylu", "📅 Kalendarz treści"])
 
@@ -199,7 +240,13 @@ with tab1:
     with colC:
         uzyj_bloga = st.checkbox("📰 Treść z bloga firmy", value=False)
 
-    if st.button("✨ Generuj treść", type="primary"):
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        generuj_tekst_klik = st.button("✨ Generuj treść", type="primary")
+    with col_btn2:
+        generuj_obraz_klik = st.button("🖼️ Generuj obraz")
+
+    if generuj_tekst_klik:
         if not temat.strip():
             st.warning("Wpisz temat, o którym ma być treść.")
         else:
@@ -225,6 +272,21 @@ with tab1:
                 wygenerowana_tresc = generuj_tresc(temat, platforma, kontekst_firmy, kontekst_internet, kontekst_blog, wzorzec_stylu)
                 st.session_state["ostatnia_tresc"] = wygenerowana_tresc
 
+    if generuj_obraz_klik:
+        if not temat.strip():
+            st.warning("Wpisz temat, żeby wygenerować obraz.")
+        else:
+            try:
+                with st.spinner("Tworzę opis obrazu..."):
+                    prompt_obrazu = generuj_prompt_obrazu(temat, platforma)
+
+                with st.spinner("Generuję obraz (to może potrwać do minuty)..."):
+                    obraz_bytes = generuj_obraz(prompt_obrazu)
+                    st.session_state["ostatni_obraz"] = obraz_bytes
+                    st.session_state["ostatni_prompt_obrazu"] = prompt_obrazu
+            except Exception as e:
+                st.error(f"Nie udało się wygenerować obrazu: {e}")
+
     if "ostatnia_tresc" in st.session_state:
         st.divider()
         st.subheader("📝 Wygenerowana treść")
@@ -234,6 +296,18 @@ with tab1:
             height=200
         )
         st.code(edytowalna_tresc, language=None)
+
+    if "ostatni_obraz" in st.session_state:
+        st.divider()
+        st.subheader("🖼️ Wygenerowany obraz")
+        st.image(st.session_state["ostatni_obraz"], use_container_width=True)
+        st.caption(f"Prompt użyty do generowania: {st.session_state.get('ostatni_prompt_obrazu', '')}")
+        st.download_button(
+            "⬇️ Pobierz obraz",
+            data=st.session_state["ostatni_obraz"],
+            file_name="post_obraz.png",
+            mime="image/png"
+        )
 
 # ---- ZAKŁADKA 2: WZORCE STYLU ----
 with tab2:
