@@ -6,7 +6,6 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
-import io
 from datetime import datetime
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -20,6 +19,8 @@ FIRMA_STRONA = st.secrets["FIRMA_STRONA"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 cohere_client = cohere.Client(COHERE_API_KEY)
+
+STORAGE_BUCKET = "marketing-obrazy"
 
 st.set_page_config(page_title="Spark - Marketing", layout="wide")
 
@@ -221,6 +222,17 @@ def generuj_obraz(prompt_obrazu):
         raise Exception(f"Błąd generowania obrazu ({response.status_code}): {response.text}")
 
 
+def zapisz_obraz_w_storage(obraz_bytes, plan_id):
+    nazwa_pliku = f"plan_{plan_id}_{int(datetime.now().timestamp())}.png"
+    supabase.storage.from_(STORAGE_BUCKET).upload(
+        nazwa_pliku,
+        obraz_bytes,
+        {"content-type": "image/png"}
+    )
+    url_response = supabase.storage.from_(STORAGE_BUCKET).get_public_url(nazwa_pliku)
+    return url_response
+
+
 # ====== ZAKŁADKI ======
 tab1, tab2, tab3 = st.tabs(["✨ Generator treści", "🎨 Wzorce stylu", "📅 Kalendarz treści"])
 
@@ -386,9 +398,12 @@ with tab3:
                 if plan.get("tresc"):
                     st.text_area("Gotowa treść:", value=plan["tresc"], height=120, key=f"tresc_{plan['id']}", disabled=True)
 
-                col1, col2, col3, col4 = st.columns(4)
+                if plan.get("obraz_url"):
+                    st.image(plan["obraz_url"], width=300)
+
+                col1, col2, col3, col4, col5 = st.columns(5)
                 with col1:
-                    if not plan.get("tresc") and st.button("✍️ Napisz treść", key=f"napisz_{plan['id']}"):
+                    if not plan.get("tresc") and st.button("✍️ Tekst", key=f"napisz_{plan['id']}"):
                         with st.spinner("Piszę..."):
                             wzorzec = pobierz_wzorzec_stylu(plan.get("platforma", "Facebook"))
                             tresc = generuj_tresc(
@@ -399,14 +414,25 @@ with tab3:
                             supabase.table("content_plan").update({"tresc": tresc}).eq("id", plan["id"]).execute()
                             st.rerun()
                 with col2:
+                    if not plan.get("obraz_url") and st.button("🖼️ Obraz", key=f"obraz_{plan['id']}"):
+                        try:
+                            with st.spinner("Generuję obraz..."):
+                                prompt_obrazu = generuj_prompt_obrazu(plan.get("temat", ""), plan.get("platforma", "Facebook"))
+                                obraz_bytes = generuj_obraz(prompt_obrazu)
+                                url = zapisz_obraz_w_storage(obraz_bytes, plan["id"])
+                                supabase.table("content_plan").update({"obraz_url": url}).eq("id", plan["id"]).execute()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Błąd generowania obrazu: {e}")
+                with col3:
                     if st.button("✅ Zatwierdź", key=f"zatwierdz_{plan['id']}"):
                         supabase.table("content_plan").update({"status": "zatwierdzone"}).eq("id", plan["id"]).execute()
                         st.rerun()
-                with col3:
+                with col4:
                     if st.button("📤 Opublikowane", key=f"opublikuj_{plan['id']}"):
                         supabase.table("content_plan").update({"status": "opublikowane"}).eq("id", plan["id"]).execute()
                         st.rerun()
-                with col4:
+                with col5:
                     if st.button("🗑️ Usuń", key=f"usun_{plan['id']}"):
                         supabase.table("content_plan").delete().eq("id", plan["id"]).execute()
                         st.rerun()
