@@ -53,6 +53,11 @@ st.caption(f"Twórz posty, obrazy, planuj kalendarz i baw się treścią dla {FI
 
 # ====== FUNKCJE POMOCNICZE ======
 
+def ma_obraz(plan):
+    url = plan.get("obraz_url")
+    return bool(url and url.strip())
+
+
 def get_query_embedding(text):
     response = cohere_client.embed(
         texts=[text],
@@ -398,7 +403,7 @@ with tab3:
                 if plan.get("tresc"):
                     st.text_area("Gotowa treść:", value=plan["tresc"], height=120, key=f"tresc_{plan['id']}", disabled=True)
 
-                if plan.get("obraz_url"):
+                if ma_obraz(plan):
                     st.image(plan["obraz_url"], width=300)
 
                 col1, col2, col3, col4, col5 = st.columns(5)
@@ -414,7 +419,7 @@ with tab3:
                             supabase.table("content_plan").update({"tresc": tresc}).eq("id", plan["id"]).execute()
                             st.rerun()
                 with col2:
-                    if not plan.get("obraz_url") and st.button("🖼️ Obraz", key=f"obraz_{plan['id']}"):
+                    if not ma_obraz(plan) and st.button("🖼️ Obraz", key=f"obraz_{plan['id']}"):
                         try:
                             with st.spinner("Generuję obraz..."):
                                 prompt_obrazu = generuj_prompt_obrazu(plan.get("temat", ""), plan.get("platforma", "Facebook"))
