@@ -60,7 +60,7 @@ def get_query_embedding(text):
     return response.embeddings[0]
 
 
-def vector_search(question, match_count=4):
+def vector_search(question, match_count=15):
     query_embedding = get_query_embedding(question)
     response = supabase.rpc(
         "match_wiedza",
@@ -69,7 +69,7 @@ def vector_search(question, match_count=4):
     return response.data or []
 
 
-def keyword_search(question, limit=4):
+def keyword_search(question, limit=8):
     words = re.findall(r"\w+", question.lower())
     keywords = [w for w in words if len(w) > 3 and w not in STOPWORDS]
     if not keywords:
@@ -83,15 +83,39 @@ def keyword_search(question, limit=4):
         return []
 
 
+def rerank_wyniki(question, kandydaci, top_n=6):
+    if not kandydaci:
+        return []
+
+    try:
+        teksty = [k["fragment"] for k in kandydaci]
+        wynik_rerank = cohere_client.rerank(
+            model="rerank-multilingual-v3.0",
+            query=question,
+            documents=teksty,
+            top_n=min(top_n, len(teksty))
+        )
+
+        posortowani = []
+        for r in wynik_rerank.results:
+            posortowani.append(kandydaci[r.index])
+        return posortowani
+    except Exception as e:
+        st.warning(f"⚠️ Reranking niedostępny, używam podstawowego sortowania: {e}")
+        return kandydaci[:top_n]
+
+
 def search_knowledge(question):
-    vec_results = vector_search(question, match_count=4)
-    key_results = keyword_search(question, limit=4)
+    vec_results = vector_search(question, match_count=15)
+    key_results = keyword_search(question, limit=8)
 
     combined = {}
     for chunk in vec_results + key_results:
         combined[chunk["id"]] = chunk
 
-    return list(combined.values())[:8]
+    kandydaci = list(combined.values())
+
+    return rerank_wyniki(question, kandydaci, top_n=6)
 
 
 def build_context(chunks):
@@ -119,7 +143,7 @@ Zasady:
 
 def zapytaj_internet(pytanie):
     completion = groq_client.chat.completions.create(
-        model="compound-beta",
+        model="groq/compound-mini",
         messages=[
             {"role": "system", "content": "Odpowiadaj krótko i konkretnie po polsku, na podstawie aktualnych informacji z internetu."},
             {"role": "user", "content": pytanie}
@@ -185,7 +209,7 @@ if question:
             st.markdown(answer)
 
             if chunks:
-                with st.expander("📄 Źródła użyte do odpowiedzi"):
+                with st.expander("📄 Źródła użyte do odpowiedzi (po reranking)"):
                     unique_sources = set(c["zrodlo"] for c in chunks)
                     for source in sorted(unique_sources):
                         st.write(f"- {source}")
