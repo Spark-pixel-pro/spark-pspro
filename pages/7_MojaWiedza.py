@@ -28,17 +28,6 @@ cohere_client = cohere.Client(COHERE_API_KEY)
 
 st.set_page_config(page_title="Spark - Moja wiedza", layout="wide")
 
-import streamlit.components.v1 as components
-
-components.html("""
-<script>
-  const link = document.createElement('link');
-  link.rel = 'manifest';
-  link.href = '/app/static/manifest.json';
-  window.parent.document.head.appendChild(link);
-</script>
-""", height=0)
-
 # ====== OCHRONA HASŁEM (KLIENT) ======
 if "zalogowany_klient" not in st.session_state:
     st.session_state.zalogowany_klient = False
