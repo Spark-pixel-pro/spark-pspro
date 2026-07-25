@@ -416,7 +416,8 @@ with tab3:
 
                 col1, col2, col3, col4, col5 = st.columns(5)
                 with col1:
-                    if not plan.get("tresc") and st.button("✍️ Tekst", key=f"napisz_{plan['id']}"):
+                    etykieta_tekst = "🔄 Nowy tekst" if plan.get("tresc") else "✍️ Tekst"
+                    if st.button(etykieta_tekst, key=f"napisz_{plan['id']}"):
                         with st.spinner("Piszę..."):
                             wzorzec = pobierz_wzorzec_stylu(plan.get("platforma", "Facebook"))
                             tresc = generuj_tresc(
@@ -427,7 +428,8 @@ with tab3:
                             supabase.table("content_plan").update({"tresc": tresc}).eq("id", plan["id"]).execute()
                             st.rerun()
                 with col2:
-                    if not ma_obraz(plan) and st.button("🖼️ Obraz", key=f"obraz_{plan['id']}"):
+                    etykieta_obraz = "🔄 Nowy obraz" if ma_obraz(plan) else "🖼️ Obraz"
+                    if st.button(etykieta_obraz, key=f"obraz_{plan['id']}"):
                         try:
                             with st.spinner("Generuję obraz..."):
                                 kontekst_dla_obrazu = znajdz_kontekst_firmy(plan.get("temat", ""))
