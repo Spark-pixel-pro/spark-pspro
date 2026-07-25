@@ -1,0 +1,31 @@
+name: Monitoring Spark
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sprawdz-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Ustaw Pythona
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Zainstaluj zależności
+        run: pip install requests
+
+      - name: Uruchom monitoring
+        env:
+          GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
+          GMAIL_HASLO: ${{ secrets.GMAIL_HASLO }}
+          FIRMA_NAZWA: ${{ secrets.FIRMA_NAZWA }}
+          STREAMLIT_URL: ${{ secrets.STREAMLIT_URL }}
+          EDGE_FUNCTION_URL: ${{ secrets.EDGE_FUNCTION_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python monitoring.py
