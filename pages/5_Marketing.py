@@ -188,14 +188,19 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, jako lista obiektów z kluczami: temat,
         return []
 
 
-def generuj_prompt_obrazu(temat, platforma):
-    prompt = f"""Na podstawie tego tematu posta marketingowego: "{temat}" (platforma: {platforma}, firma: {FIRMA_NAZWA})
+def generuj_prompt_obrazu(temat, platforma, kontekst_firmy=""):
+    info_kontekst = f"\n\nKontekst o branży/usługach firmy:\n{kontekst_firmy}" if kontekst_firmy else ""
 
-Napisz KRÓTKI, konkretny prompt PO ANGIELSKU do generatora obrazów AI, opisujący profesjonalne, atrakcyjne zdjęcie pasujące do tego posta.
+    prompt = f"""Na podstawie tego tematu posta marketingowego: "{temat}" (platforma: {platforma}, firma: {FIRMA_NAZWA}){info_kontekst}
+
+Napisz KRÓTKI, konkretny prompt PO ANGIELSKU do generatora obrazów AI, opisujący zdjęcie ŚCIŚLE związane z konkretnym tematem posta.
 
 Zasady:
-- Tylko opis wizualny sceny, stylu, oświetlenia — bez tekstu do wstawienia w obraz
-- Styl: profesjonalna fotografia biznesowa/marketingowa, naturalne światło, czysta kompozycja
+- UNIKAJ pokazywania ludzi (zwłaszcza "businessman at laptop", "person in office") — to zbyt generyczne
+- Zamiast tego pokaż KONKRETNE przedmioty, sceny lub symbole bezpośrednio związane z tematem (np. dla tematu o dofinansowaniach na energię odnawialną: panele słoneczne na dachu, dokumenty z wykresami energii, dom z pompą ciepła)
+- Dodaj do sceny subtelny akcent w kolorze żółtym (#FFD600) — np. detal, oświetlenie, element dekoracyjny — jako nawiązanie do barw firmy
+- Styl: profesjonalna fotografia, naturalne światło, czysta, nowoczesna kompozycja
+- Tylko opis wizualny sceny — bez tekstu do wstawienia w obraz
 - Maksymalnie 2-3 zdania
 - Odpowiedz WYŁĄCZNIE samym promptem, bez żadnych dodatkowych komentarzy"""
 
@@ -294,8 +299,11 @@ with tab1:
             st.warning("Wpisz temat, żeby wygenerować obraz.")
         else:
             try:
+                with st.spinner("Szukam kontekstu branżowego..."):
+                    kontekst_dla_obrazu = znajdz_kontekst_firmy(temat)
+
                 with st.spinner("Tworzę opis obrazu..."):
-                    prompt_obrazu = generuj_prompt_obrazu(temat, platforma)
+                    prompt_obrazu = generuj_prompt_obrazu(temat, platforma, kontekst_dla_obrazu)
 
                 with st.spinner("Generuję obraz (to może potrwać do minuty)..."):
                     obraz_bytes = generuj_obraz(prompt_obrazu)
@@ -422,7 +430,8 @@ with tab3:
                     if not ma_obraz(plan) and st.button("🖼️ Obraz", key=f"obraz_{plan['id']}"):
                         try:
                             with st.spinner("Generuję obraz..."):
-                                prompt_obrazu = generuj_prompt_obrazu(plan.get("temat", ""), plan.get("platforma", "Facebook"))
+                                kontekst_dla_obrazu = znajdz_kontekst_firmy(plan.get("temat", ""))
+                                prompt_obrazu = generuj_prompt_obrazu(plan.get("temat", ""), plan.get("platforma", "Facebook"), kontekst_dla_obrazu)
                                 obraz_bytes = generuj_obraz(prompt_obrazu)
                                 url = zapisz_obraz_w_storage(obraz_bytes, plan["id"])
                                 supabase.table("content_plan").update({"obraz_url": url}).eq("id", plan["id"]).execute()
