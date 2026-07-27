@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Spark</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -14,7 +15,8 @@
     font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--text); line-height: 1.5; padding: 40px 48px;
   }
-  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 16px; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
   .badge {
     width: 44px; height: 44px; border-radius: 12px; background: var(--accent);
     box-shadow: 0 0 24px rgba(255,214,0,0.4);
@@ -24,8 +26,22 @@
   .header .title { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
   .header .subtitle { font-size: 0.85rem; color: var(--text-muted); }
 
+  .refresh-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; transition: border-color 0.2s ease;
+  }
+  .refresh-btn:hover { border-color: var(--accent); }
+  .refresh-btn .spin { display: inline-block; transition: transform 0.5s ease; }
+  .refresh-btn.loading .spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .kpi-row { display: flex; gap: 16px; margin-bottom: 36px; flex-wrap: wrap; }
-  .kpi-card { flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+  .kpi-card {
+    flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px; transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .kpi-card:hover { transform: translateY(-3px); border-color: var(--accent); }
   .kpi-card .icon { font-size: 20px; margin-bottom: 10px; }
   .kpi-card .value { font-size: 2.1rem; font-weight: 700; letter-spacing: -1px; }
   .kpi-card .label { font-size: 0.82rem; color: var(--text-muted); margin-top: 6px; }
@@ -35,62 +51,104 @@
     text-transform: uppercase; margin: 32px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
   }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .charts-row { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+  .chart-wrap { height: 260px; position: relative; }
 
-  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-  .bar-label { width: 130px; font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar-track { flex: 1; background: var(--surface-2); border-radius: 6px; height: 20px; overflow: hidden; }
-  .bar-fill { background: var(--accent); height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-  .bar-value { font-size: 0.8rem; color: var(--text-muted); width: 30px; text-align: right; }
+  .table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .search-input {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 14px; color: var(--text); font-size: 0.85rem; width: 240px;
+  }
+  .search-input:focus { outline: none; border-color: var(--accent); }
 
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  th:hover { color: var(--accent); }
   td { padding: 12px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+  tr { transition: background 0.15s ease; }
+  tr:hover td { background: var(--surface-2); }
   tr:last-child td { border-bottom: none; }
 
-  .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+  .loading-skeleton { display: flex; flex-direction: column; gap: 12px; }
+  .skeleton-bar { height: 90px; background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 14px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
   .error-box { background: #3a1f1f; color: #ff9a9a; padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; }
+  .last-updated { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+
+  @media (max-width: 900px) {
+    .charts-row { grid-template-columns: 1fr; }
+    body { padding: 24px 20px; }
+  }
 </style>
 </head>
 <body>
 
   <div class="header">
-    <div class="badge">S</div>
-    <div>
-      <div class="title">Dashboard</div>
-      <div class="subtitle">Przegląd aktywności Sparka</div>
+    <div class="header-left">
+      <div class="badge">S</div>
+      <div>
+        <div class="title">Dashboard</div>
+        <div class="subtitle">Przegląd aktywności Sparka</div>
+      </div>
     </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="zaladujDashboard(true)">
+      <span class="spin">🔄</span> Odśwież
+    </button>
   </div>
 
   <div id="errorBox" class="error-box" style="display:none;"></div>
-  <div id="loadingBox" class="loading">Ładowanie danych...</div>
+
+  <div id="skeletonBox" class="loading-skeleton">
+    <div class="skeleton-bar"></div>
+    <div class="skeleton-bar" style="height:280px;"></div>
+  </div>
+
   <div id="content" style="display:none;">
 
     <div class="kpi-row">
       <div class="kpi-card">
         <div class="icon">👥</div>
-        <div class="value" id="statClients">—</div>
+        <div class="value" id="statClients">0</div>
         <div class="label">Liczba klientów</div>
       </div>
       <div class="kpi-card">
         <div class="icon">💬</div>
-        <div class="value" id="statVisits">—</div>
+        <div class="value" id="statVisits">0</div>
         <div class="label">Suma wizyt</div>
       </div>
       <div class="kpi-card">
         <div class="icon">🔁</div>
-        <div class="value" id="statReturning">—</div>
+        <div class="value" id="statReturning">0</div>
         <div class="label">Powracający klienci</div>
       </div>
     </div>
 
-    <div class="section-label">Najczęstsze zainteresowania</div>
-    <div class="card" id="interestsCard"></div>
+    <div class="section-label">Aktywność</div>
+    <div class="charts-row">
+      <div class="card">
+        <div class="chart-wrap"><canvas id="visitsChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="chart-wrap"><canvas id="interestsChart"></canvas></div>
+      </div>
+    </div>
 
     <div class="section-label">Lista klientów</div>
     <div class="card">
+      <div class="table-controls">
+        <input type="text" class="search-input" id="searchInput" placeholder="Szukaj klienta...">
+        <div class="last-updated" id="lastUpdated"></div>
+      </div>
       <table>
         <thead>
-          <tr><th>Imię</th><th>Telefon</th><th>Email</th><th>Wizyty</th><th>Ostatnia wizyta</th></tr>
+          <tr>
+            <th onclick="sortuj('imie')">Imię</th>
+            <th onclick="sortuj('telefon')">Telefon</th>
+            <th onclick="sortuj('email')">Email</th>
+            <th onclick="sortuj('liczba_wizyt')">Wizyty</th>
+            <th onclick="sortuj('ostatnia_wizyta')">Ostatnia wizyta</th>
+          </tr>
         </thead>
         <tbody id="clientsTable"></tbody>
       </table>
@@ -100,58 +158,170 @@
 
 <script>
 const API_URL = "https://spark-api-pspro.onrender.com/stats";
+let wszyscyKlienci = [];
+let visitsChartInstance = null;
+let interestsChartInstance = null;
+let aktualneSortowanie = { kolumna: null, rosnaco: true };
 
-async function zaladujDashboard() {
+function animujLiczbe(elementId, docelowa) {
+  const el = document.getElementById(elementId);
+  const start = 0;
+  const czas = 700;
+  const startCzas = performance.now();
+
+  function krok(teraz) {
+    const postep = Math.min((teraz - startCzas) / czas, 1);
+    const aktualna = Math.floor(postep * docelowa);
+    el.textContent = aktualna;
+    if (postep < 1) requestAnimationFrame(krok);
+    else el.textContent = docelowa;
+  }
+  requestAnimationFrame(krok);
+}
+
+function renderujTabele(klienci) {
+  const clientsTable = document.getElementById('clientsTable');
+  if (klienci.length > 0) {
+    clientsTable.innerHTML = klienci.map(c => `
+      <tr>
+        <td>${c.imie || '—'}</td>
+        <td>${c.telefon || '—'}</td>
+        <td>${c.email || '—'}</td>
+        <td>${c.liczba_wizyt ?? '—'}</td>
+        <td>${c.ostatnia_wizyta && c.ostatnia_wizyta !== 'null' ? c.ostatnia_wizyta : '—'}</td>
+      </tr>
+    `).join('');
+  } else {
+    clientsTable.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">Brak wyników.</td></tr>';
+  }
+}
+
+function sortuj(kolumna) {
+  if (aktualneSortowanie.kolumna === kolumna) {
+    aktualneSortowanie.rosnaco = !aktualneSortowanie.rosnaco;
+  } else {
+    aktualneSortowanie = { kolumna, rosnaco: true };
+  }
+
+  const posortowani = [...wszyscyKlienci].sort((a, b) => {
+    let va = a[kolumna] ?? '';
+    let vb = b[kolumna] ?? '';
+    if (typeof va === 'number' && typeof vb === 'number') {
+      return aktualneSortowanie.rosnaco ? va - vb : vb - va;
+    }
+    return aktualneSortowanie.rosnaco
+      ? String(va).localeCompare(String(vb))
+      : String(vb).localeCompare(String(va));
+  });
+
+  renderujTabele(filtrujWyszukiwaniem(posortowani));
+}
+
+function filtrujWyszukiwaniem(lista) {
+  const fraza = document.getElementById('searchInput').value.toLowerCase();
+  if (!fraza) return lista;
+  return lista.filter(c =>
+    (c.imie || '').toLowerCase().includes(fraza) ||
+    (c.email || '').toLowerCase().includes(fraza) ||
+    (c.telefon || '').toLowerCase().includes(fraza)
+  );
+}
+
+document.getElementById('searchInput').addEventListener('input', () => {
+  renderujTabele(filtrujWyszukiwaniem(wszyscyKlienci));
+});
+
+function rysujWykresWizyt(visitsByDay) {
+  const ctx = document.getElementById('visitsChart');
+  if (visitsChartInstance) visitsChartInstance.destroy();
+
+  visitsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: visitsByDay.map(d => d.date),
+      datasets: [{
+        label: 'Wizyty',
+        data: visitsByDay.map(d => d.visits),
+        backgroundColor: '#FFD600',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8A8A94' } },
+        y: { grid: { color: '#2A2A33' }, ticks: { color: '#8A8A94', stepSize: 1 } }
+      }
+    }
+  });
+}
+
+function rysujWykresZainteresowan(topInterests) {
+  const ctx = document.getElementById('interestsChart');
+  if (interestsChartInstance) interestsChartInstance.destroy();
+
+  interestsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: topInterests.map(i => i.term),
+      datasets: [{
+        label: 'Wystąpienia',
+        data: topInterests.map(i => i.count),
+        backgroundColor: '#4A9EFF',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2A2A33' }, ticks: { color: '#8A8A94', stepSize: 1 } },
+        y: { grid: { display: false }, ticks: { color: '#8A8A94' } }
+      }
+    }
+  });
+}
+
+async function zaladujDashboard(reczneOdswiezenie = false) {
+  const refreshBtn = document.getElementById('refreshBtn');
+  if (reczneOdswiezenie) refreshBtn.classList.add('loading');
+
   try {
     const response = await fetch(API_URL);
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
     const data = await response.json();
 
-    document.getElementById('statClients').textContent = data.total_clients;
-    document.getElementById('statVisits').textContent = data.total_visits;
-    document.getElementById('statReturning').textContent = data.returning_clients;
+    animujLiczbe('statClients', data.total_clients);
+    animujLiczbe('statVisits', data.total_visits);
+    animujLiczbe('statReturning', data.returning_clients);
 
-    const interestsCard = document.getElementById('interestsCard');
-    if (data.top_interests && data.top_interests.length > 0) {
-      const maxCount = Math.max(...data.top_interests.map(i => i.count));
-      interestsCard.innerHTML = data.top_interests.map(i => `
-        <div class="bar-row">
-          <div class="bar-label" title="${i.term}">${i.term}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(i.count / maxCount) * 100}%"></div></div>
-          <div class="bar-value">${i.count}</div>
-        </div>
-      `).join('');
-    } else {
-      interestsCard.innerHTML = '<p style="color:var(--text-muted)">Brak jeszcze zapisanych zainteresowań.</p>';
-    }
+    rysujWykresWizyt(data.visits_by_day || []);
+    rysujWykresZainteresowan(data.top_interests || []);
 
-    const clientsTable = document.getElementById('clientsTable');
-    if (data.clients && data.clients.length > 0) {
-      clientsTable.innerHTML = data.clients.map(c => `
-        <tr>
-          <td>${c.imie || '—'}</td>
-          <td>${c.telefon || '—'}</td>
-          <td>${c.email || '—'}</td>
-          <td>${c.liczba_wizyt ?? '—'}</td>
-          <td>${c.ostatnia_wizyta || '—'}</td>
-        </tr>
-      `).join('');
-    } else {
-      clientsTable.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">Brak klientów w bazie.</td></tr>';
-    }
+    wszyscyKlienci = data.clients || [];
+    renderujTabele(filtrujWyszukiwaniem(wszyscyKlienci));
 
-    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('lastUpdated').textContent = 'Zaktualizowano: ' + new Date().toLocaleTimeString('pl-PL');
+    document.getElementById('skeletonBox').style.display = 'none';
     document.getElementById('content').style.display = 'block';
+    document.getElementById('errorBox').style.display = 'none';
 
   } catch (err) {
-    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('skeletonBox').style.display = 'none';
     const errorBox = document.getElementById('errorBox');
-    errorBox.textContent = "Nie udało się załadować danych: " + err.message + " (jeśli API 'spało', odśwież stronę za chwilę)";
+    errorBox.textContent = "Nie udało się załadować danych: " + err.message + " (jeśli API 'spało', odśwież za chwilę)";
     errorBox.style.display = 'block';
+  } finally {
+    refreshBtn.classList.remove('loading');
   }
 }
 
 zaladujDashboard();
+setInterval(() => zaladujDashboard(), 60000);
 </script>
 
 </body>
