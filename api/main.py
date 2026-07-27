@@ -40,6 +40,7 @@ def get_stats():
 
     df = pd.DataFrame(dane)
     df["ostatnia_wizyta"] = pd.to_datetime(df["ostatnia_wizyta"], errors="coerce")
+    df["liczba_wizyt"] = pd.to_numeric(df["liczba_wizyt"], errors="coerce").fillna(1).astype(int)
 
     total_clients = len(df)
     total_visits = int(df["liczba_wizyt"].sum())
@@ -61,6 +62,7 @@ def get_stats():
 
     clients_list = df[["imie", "telefon", "email", "liczba_wizyt", "ostatnia_wizyta", "zainteresowania"]].copy()
     clients_list["ostatnia_wizyta"] = clients_list["ostatnia_wizyta"].astype(str)
+    clients_list = clients_list.where(pd.notnull(clients_list), None)
     clients_list = clients_list.sort_values("ostatnia_wizyta", ascending=False)
 
     return {
