@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 import pandas as pd
+import math
 import os
 
 app = FastAPI(title="Spark API")
@@ -16,6 +17,16 @@ app.add_middleware(
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+def wyczysc_nan(obj):
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: wyczysc_nan(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [wyczysc_nan(v) for v in obj]
+    return obj
 
 
 @app.get("/")
@@ -62,10 +73,10 @@ def get_stats():
 
     clients_list = df[["imie", "telefon", "email", "liczba_wizyt", "ostatnia_wizyta", "zainteresowania"]].copy()
     clients_list["ostatnia_wizyta"] = clients_list["ostatnia_wizyta"].astype(str)
-    clients_list = clients_list.where(pd.notnull(clients_list), None)
+    clients_list = clients_list.astype(object).where(pd.notnull(clients_list), None)
     clients_list = clients_list.sort_values("ostatnia_wizyta", ascending=False)
 
-    return {
+    wynik = {
         "total_clients": total_clients,
         "total_visits": total_visits,
         "returning_clients": returning_clients,
@@ -73,3 +84,5 @@ def get_stats():
         "top_interests": top_interests,
         "clients": clients_list.to_dict("records")
     }
+
+    return wyczysc_nan(wynik)
