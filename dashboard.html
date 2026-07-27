@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Spark</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0B0B0F; --surface: #16161D; --surface-2: #1E1E27;
+    --accent: #FFD600; --text: #F5F5F7; --text-muted: #8A8A94; --border: #2A2A33;
+  }
+  body {
+    font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5; padding: 40px 48px;
+  }
+  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; background: var(--accent);
+    box-shadow: 0 0 24px rgba(255,214,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: #1A1600;
+  }
+  .header .title { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 36px; flex-wrap: wrap; }
+  .kpi-card { flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+  .kpi-card .icon { font-size: 20px; margin-bottom: 10px; }
+  .kpi-card .value { font-size: 2.1rem; font-weight: 700; letter-spacing: -1px; }
+  .kpi-card .label { font-size: 0.82rem; color: var(--text-muted); margin-top: 6px; }
+
+  .section-label {
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 1.2px; color: var(--text-muted);
+    text-transform: uppercase; margin: 32px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-label { width: 130px; font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; background: var(--surface-2); border-radius: 6px; height: 20px; overflow: hidden; }
+  .bar-fill { background: var(--accent); height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .bar-value { font-size: 0.8rem; color: var(--text-muted); width: 30px; text-align: right; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+
+  .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+  .error-box { background: #3a1f1f; color: #ff9a9a; padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="badge">S</div>
+    <div>
+      <div class="title">Dashboard</div>
+      <div class="subtitle">Przegląd aktywności Sparka</div>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box" style="display:none;"></div>
+  <div id="loadingBox" class="loading">Ładowanie danych...</div>
+  <div id="content" style="display:none;">
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="icon">👥</div>
+        <div class="value" id="statClients">—</div>
+        <div class="label">Liczba klientów</div>
+      </div>
+      <div class="kpi-card">
+        <div class="icon">💬</div>
+        <div class="value" id="statVisits">—</div>
+        <div class="label">Suma wizyt</div>
+      </div>
+      <div class="kpi-card">
+        <div class="icon">🔁</div>
+        <div class="value" id="statReturning">—</div>
+        <div class="label">Powracający klienci</div>
+      </div>
+    </div>
+
+    <div class="section-label">Najczęstsze zainteresowania</div>
+    <div class="card" id="interestsCard"></div>
+
+    <div class="section-label">Lista klientów</div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Imię</th><th>Telefon</th><th>Email</th><th>Wizyty</th><th>Ostatnia wizyta</th></tr>
+        </thead>
+        <tbody id="clientsTable"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+<script>
+const API_URL = "https://spark-api-pspro.onrender.com/stats";
+
+async function zaladujDashboard() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+    const data = await response.json();
+
+    document.getElementById('statClients').textContent = data.total_clients;
+    document.getElementById('statVisits').textContent = data.total_visits;
+    document.getElementById('statReturning').textContent = data.returning_clients;
+
+    const interestsCard = document.getElementById('interestsCard');
+    if (data.top_interests && data.top_interests.length > 0) {
+      const maxCount = Math.max(...data.top_interests.map(i => i.count));
+      interestsCard.innerHTML = data.top_interests.map(i => `
+        <div class="bar-row">
+          <div class="bar-label" title="${i.term}">${i.term}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(i.count / maxCount) * 100}%"></div></div>
+          <div class="bar-value">${i.count}</div>
+        </div>
+      `).join('');
+    } else {
+      interestsCard.innerHTML = '<p style="color:var(--text-muted)">Brak jeszcze zapisanych zainteresowań.</p>';
+    }
+
+    const clientsTable = document.getElementById('clientsTable');
+    if (data.clients && data.clients.length > 0) {
+      clientsTable.innerHTML = data.clients.map(c => `
+        <tr>
+          <td>${c.imie || '—'}</td>
+          <td>${c.telefon || '—'}</td>
+          <td>${c.email || '—'}</td>
+          <td>${c.liczba_wizyt ?? '—'}</td>
+          <td>${c.ostatnia_wizyta || '—'}</td>
+        </tr>
+      `).join('');
+    } else {
+      clientsTable.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted)">Brak klientów w bazie.</td></tr>';
+    }
+
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+  } catch (err) {
+    document.getElementById('loadingBox').style.display = 'none';
+    const errorBox = document.getElementById('errorBox');
+    errorBox.textContent = "Nie udało się załadować danych: " + err.message + " (jeśli API 'spało', odśwież stronę za chwilę)";
+    errorBox.style.display = 'block';
+  }
+}
+
+zaladujDashboard();
+</script>
+
+</body>
+</html>
