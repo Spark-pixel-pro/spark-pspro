@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Świadectwa — Spark</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0B0B0F; --surface: #16161D; --surface-2: #1E1E27;
+    --accent: #FFD600; --text: #F5F5F7; --text-muted: #8A8A94; --border: #2A2A33;
+  }
+  body {
+    font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5; padding: 40px 48px;
+  }
+  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; background: var(--accent);
+    box-shadow: 0 0 24px rgba(255,214,0,0.4);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .header .title { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+  .warning-banner {
+    background: rgba(255,214,0,0.08); border: 1px solid rgba(255,214,0,0.35);
+    border-radius: 12px; padding: 14px 18px; margin: 20px 0; font-size: 0.88rem; max-width: 900px;
+  }
+
+  .pin-wrap { max-width: 340px; margin: 60px auto; text-align: center; }
+  .pin-wrap input {
+    width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 1rem; margin-bottom: 12px;
+  }
+  .pin-wrap button {
+    width: 100%; padding: 14px; border-radius: 10px; border: none; background: var(--accent);
+    color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.95rem;
+  }
+  .pin-error { color: #ff9a9a; font-size: 0.85rem; margin-top: 10px; }
+
+  #glownaTresc { display: none; max-width: 900px; }
+
+  .section-label {
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 1.2px; color: var(--text-muted);
+    text-transform: uppercase; margin: 30px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-num {
+    width: 22px; height: 22px; border-radius: 6px; background: var(--surface-2);
+    border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; color: var(--accent); font-weight: 700;
+  }
+
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .field label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 0.9rem;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+
+  .generate-btn {
+    background: var(--accent); color: #1A1600; border: none; padding: 13px 28px;
+    border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 24px;
+  }
+  .generate-btn:hover { box-shadow: 0 6px 18px rgba(255,214,0,0.35); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .result-card {
+    background: var(--surface); border: 1px solid rgba(255,214,0,0.27); border-radius: 14px;
+    padding: 22px 24px; margin-top: 20px; display: none;
+  }
+  .result-card textarea {
+    width: 100%; min-height: 240px; background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 14px; font-size: 0.9rem; font-family: inherit;
+    margin-top: 12px; resize: vertical;
+  }
+
+  .error-msg { color: #ff9a9a; font-size: 0.85rem; margin-top: 12px; }
+  @media (max-width: 800px) { .form-grid, .form-grid-3 { grid-template-columns: 1fr; } body { padding: 24px 20px; } }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="badge">📄</div>
+    <div>
+      <div class="title">Asystent świadectw energetycznych</div>
+      <div class="subtitle">Opis i formatowanie gotowych wyników</div>
+    </div>
+  </div>
+
+  <div id="pinWrap" class="pin-wrap">
+    <input type="password" id="pinInput" placeholder="Hasło pracownicze">
+    <button onclick="sprawdzHaslo()">Wejdź</button>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+
+  <div id="glownaTresc">
+    <div class="warning-banner">
+      ⚠️ Ten panel <b>nie liczy fizyki budynku</b>. Wszystkie wartości liczbowe (EU, EK, EP, CO2) wprowadź
+      z Waszego certyfikowanego oprogramowania audytorskiego. Spark wyłącznie opisuje i formatuje gotowe wyniki.
+    </div>
+
+    <div class="section-label"><span class="section-num">1</span> Dane budynku</div>
+    <div class="form-card">
+      <div class="form-grid">
+        <div class="field"><label>Rodzaj budynku</label><input id="rodzaj" placeholder="np. budynek mieszkalny jednorodzinny"></div>
+        <div class="field"><label>Przeznaczenie budynku</label><input id="przeznaczenie" placeholder="np. mieszkalne"></div>
+        <div class="field"><label>Rok oddania do użytkowania</label><input id="rok" type="number" value="2000"></div>
+        <div class="field"></div>
+        <div class="field"><label>Powierzchnia ogrzewana Af [m²]</label><input id="powierzchnia_af" type="number" step="0.1"></div>
+        <div class="field"><label>Powierzchnia użytkowa [m²]</label><input id="powierzchnia_uzytkowa" type="number" step="0.1"></div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="section-num">2</span> Wskaźniki (już obliczone)</div>
+    <div class="form-card">
+      <div class="form-grid-3">
+        <div class="field"><label>EU [kWh/(m²·rok)]</label><input id="eu" type="number" step="0.1"></div>
+        <div class="field"><label>EK [kWh/(m²·rok)]</label><input id="ek" type="number" step="0.1"></div>
+        <div class="field"><label>EP oceniany budynek</label><input id="ep" type="number" step="0.1"></div>
+        <div class="field"><label>EP wymagania (nowy budynek)</label><input id="ep_referencyjne" type="number" step="0.1"></div>
+        <div class="field"><label>Emisja CO2 [t/(m²·rok)]</label><input id="co2" type="number" step="0.001"></div>
+        <div class="field"><label>Udział OZE (Uoze) [%]</label><input id="uoze" type="number" step="1"></div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="section-num">3</span> Źródła energii</div>
+    <div class="form-card">
+      <div class="form-grid">
+        <div class="field"><label>Źródło ogrzewania</label><input id="zrodlo_ogrzewanie" placeholder="np. kocioł gazowy kondensacyjny"></div>
+        <div class="field"><label>Źródło ciepłej wody użytkowej</label><input id="zrodlo_cwu" placeholder="np. kocioł gazowy dwufunkcyjny"></div>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generujOpis()">✨ Wygeneruj opis dla klienta</button>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="result-card" id="resultCard">
+      <div class="section-label" style="margin:0 0 10px; border:none; padding:0;"><span class="section-num">✓</span> Wygenerowany opis</div>
+      <p style="color:var(--text-muted); font-size:0.85rem;">⚠️ Zawsze zweryfikuj treść przed wysłaniem do klienta — to jest szkic.</p>
+      <textarea id="resultText"></textarea>
+    </div>
+  </div>
+
+<script>
+const API_URL = "https://spark-api-pspro.onrender.com/generate-certificate-description";
+let haslo = "";
+
+function sprawdzHaslo() {
+  const wpisane = document.getElementById('pinInput').value;
+  if (!wpisane) return;
+  haslo = wpisane;
+  document.getElementById('pinWrap').style.display = 'none';
+  document.getElementById('glownaTresc').style.display = 'block';
+}
+
+async function generujOpis() {
+  const btn = document.getElementById('generateBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  errorMsg.textContent = '';
+
+  const dane = {
+    haslo: haslo,
+    rodzaj: document.getElementById('rodzaj').value,
+    przeznaczenie: document.getElementById('przeznaczenie').value,
+    rok: parseInt(document.getElementById('rok').value) || 2000,
+    powierzchnia_af: parseFloat(document.getElementById('powierzchnia_af').value) || 0,
+    powierzchnia_uzytkowa: parseFloat(document.getElementById('powierzchnia_uzytkowa').value) || 0,
+    eu: parseFloat(document.getElementById('eu').value) || 0,
+    ek: parseFloat(document.getElementById('ek').value) || 0,
+    ep: parseFloat(document.getElementById('ep').value) || 0,
+    ep_referencyjne: parseFloat(document.getElementById('ep_referencyjne').value) || 0,
+    co2: parseFloat(document.getElementById('co2').value) || 0,
+    uoze: parseFloat(document.getElementById('uoze').value) || 0,
+    zrodlo_ogrzewanie: document.getElementById('zrodlo_ogrzewanie').value,
+    zrodlo_cwu: document.getElementById('zrodlo_cwu').value
+  };
+
+  if (!dane.rodzaj || dane.eu === 0 || dane.ep === 0) {
+    errorMsg.textContent = "Uzupełnij przynajmniej rodzaj budynku oraz wskaźniki EU i EP.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Generuję...";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dane)
+    });
+
+    if (response.status === 403) {
+      errorMsg.textContent = "Nieprawidłowe hasło pracownicze.";
+      document.getElementById('pinWrap').style.display = 'block';
+      document.getElementById('glownaTresc').style.display = 'none';
+      return;
+    }
+
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const data = await response.json();
+    document.getElementById('resultText').value = data.opis;
+    document.getElementById('resultCard').style.display = 'block';
+
+  } catch (err) {
+    errorMsg.textContent = "Nie udało się wygenerować opisu: " + err.message + " (jeśli API 'spało', spróbuj ponownie za chwilę)";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ Wygeneruj opis dla klienta";
+  }
+}
+</script>
+
+</body>
+</html>
