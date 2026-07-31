@@ -2,3 +2,6 @@ fastapi
 uvicorn[standard]
 supabase
 pandas
+groq
+cohere
+pydantic
