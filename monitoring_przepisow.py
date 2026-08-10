@@ -31,6 +31,24 @@ Odpowiadaj po polsku, maksymalnie 150 słów."""
         return f"⚠️ Nie udało się sprawdzić tego tematu: {e}"
 
 
+def sprawdz_nadchodzace_zmiany(zapytanie, opis):
+    prompt = f"""Sprawdź w internecie, czy w Polsce są obecnie w toku prac legislacyjnych (projekty ustaw, projekty rozporządzeń, konsultacje publiczne, zapowiedziane nowelizacje) dotyczące: {zapytanie}
+
+Szukaj konkretnie: projektów aktów prawnych będących w konsultacjach, zapowiedzi Ministerstwa, planowanych terminów wejścia w życie.
+Jeśli nic nie jest obecnie planowane, napisz wprost: "Brak zapowiedzianych zmian na horyzoncie."
+Jeśli coś się szykuje, opisz krótko w punktach: czego dotyczy, na jakim jest etapie, przewidywany termin.
+Odpowiadaj po polsku, maksymalnie 150 słów."""
+
+    try:
+        completion = groq_client.chat.completions.create(
+            model="groq/compound-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"⚠️ Nie udało się sprawdzić tego tematu: {e}"
+
+
 def wyslij_podsumowanie(wyniki):
     msg = MIMEMultipart()
     msg["From"] = GMAIL_EMAIL
@@ -59,10 +77,15 @@ if __name__ == "__main__":
 
     wyniki = []
     for nazwa, zapytanie in tematy:
-        print(f"Sprawdzam: {nazwa}...")
-        wynik = sprawdz_temat(zapytanie, nazwa)
-        wyniki.append((nazwa, wynik))
-        print(wynik)
+        print(f"Sprawdzam zmiany wsteczne: {nazwa}...")
+        wynik_wsteczny = sprawdz_temat(zapytanie, nazwa)
+        wyniki.append((f"{nazwa} — CO SIĘ JUŻ ZMIENIŁO", wynik_wsteczny))
+        print(wynik_wsteczny)
+
+        print(f"Sprawdzam nadchodzące zmiany: {nazwa}...")
+        wynik_nadchodzacy = sprawdz_nadchodzace_zmiany(zapytanie, nazwa)
+        wyniki.append((f"{nazwa} — CO SIĘ SZYKUJE", wynik_nadchodzacy))
+        print(wynik_nadchodzacy)
         print()
 
     wyslij_podsumowanie(wyniki)
