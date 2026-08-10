@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Pracownika — Spark</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0B0B0F; --surface: #16161D; --surface-2: #1E1E27;
+    --accent: #FFD600; --text: #F5F5F7; --text-muted: #8A8A94; --border: #2A2A33;
+  }
+  body {
+    font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+
+  /* EKRAN LOGOWANIA */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 40px; width: 100%; max-width: 380px;
+  }
+  .login-box .badge {
+    width: 52px; height: 52px; border-radius: 14px; background: var(--accent);
+    box-shadow: 0 0 24px rgba(255,214,0,0.4);
+    display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px;
+  }
+  .login-box h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+  .login-box p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+  .login-box input {
+    width: 100%; padding: 13px 16px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;
+  }
+  .login-box input:focus { outline: none; border-color: var(--accent); }
+  .login-box button {
+    width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent);
+    color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+  }
+  .login-error { color: #ff9a9a; font-size: 0.83rem; margin-top: 12px; text-align: center; }
+
+  /* PANEL GŁÓWNY */
+  #mainApp { display: none; }
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .badge-small {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .topbar .title { font-weight: 700; font-size: 1rem; }
+  .user-info { font-size: 0.83rem; color: var(--text-muted); text-align: right; }
+  .user-info .name { color: var(--text); font-weight: 600; }
+
+  .layout { display: flex; min-height: calc(100vh - 69px); }
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px; }
+  .nav-item {
+    padding: 12px 16px; border-radius: 10px; font-size: 0.88rem; font-weight: 500;
+    color: var(--text-muted); cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--text); }
+  .nav-item.active { background: rgba(255,214,0,0.1); color: var(--accent); }
+
+  .content { flex: 1; padding: 32px 40px; }
+  .module { display: none; }
+  .module.active { display: block; }
+  .placeholder { color: var(--text-muted); padding: 60px 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+  <div id="loginScreen">
+    <div class="login-box">
+      <div class="badge">S</div>
+      <h1>Panel Pracownika</h1>
+      <p>Zaloguj się, żeby uzyskać dostęp do narzędzi Sparka</p>
+      <input type="email" id="emailInput" placeholder="Email">
+      <input type="password" id="haslInput" placeholder="Hasło">
+      <button onclick="zaloguj()">Zaloguj się</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <div id="mainApp">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="badge-small">S</div>
+        <div class="title">Panel Pracownika</div>
+      </div>
+      <div class="user-info">
+        <div class="name" id="userName"></div>
+        <div id="userStanowisko"></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="sidebar">
+        <div class="nav-item active" data-module="swiadectwa" onclick="przelaczModul('swiadectwa')">📄 Świadectwa</div>
+        <div class="nav-item" data-module="onboarding" onclick="przelaczModul('onboarding')">📚 Onboarding</div>
+        <div class="nav-item" data-module="przepisy" onclick="przelaczModul('przepisy')">⚖️ Przepisy</div>
+        <div class="nav-item" data-module="maile" onclick="przelaczModul('maile')">✉️ Maile</div>
+      </div>
+
+      <div class="content">
+        <div class="module active" id="module-swiadectwa">
+          <p class="placeholder">Tutaj wkrótce pojawi się panel Świadectw — dołączymy go w kolejnym kroku.</p>
+        </div>
+        <div class="module" id="module-onboarding">
+          <p class="placeholder">📚 Onboarding — jeszcze nie zbudowane.</p>
+        </div>
+        <div class="module" id="module-przepisy">
+          <p class="placeholder">⚖️ Monitorowanie przepisów — jeszcze nie zbudowane.</p>
+        </div>
+        <div class="module" id="module-maile">
+          <p class="placeholder">✉️ Asystent maili — jeszcze nie zbudowane.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API_URL = "https://spark-api-pspro.onrender.com";
+let zalogowanyPracownik = null;
+
+async function zaloguj() {
+  const email = document.getElementById('emailInput').value;
+  const haslo = document.getElementById('haslInput').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.textContent = '';
+
+  if (!email || !haslo) {
+    errorEl.textContent = "Wpisz email i hasło.";
+    return;
+  }
+
+  try {
+    const response = await fetch(API_URL + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, haslo })
+    });
+
+    if (response.status === 403) {
+      errorEl.textContent = "Nieprawidłowy email lub hasło.";
+      return;
+    }
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const dane = await response.json();
+    zalogowanyPracownik = { ...dane, haslo };
+
+    document.getElementById('userName').textContent = dane.imie + " " + dane.nazwisko;
+    document.getElementById('userStanowisko').textContent = dane.stanowisko || '';
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+
+  } catch (err) {
+    errorEl.textContent = "Błąd połączenia: " + err.message + " (jeśli API 'spało', spróbuj ponownie za chwilę)";
+  }
+}
+
+document.getElementById('haslInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') zaloguj();
+});
+
+function przelaczModul(nazwa) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-module="${nazwa}"]`).classList.add('active');
+  document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
+  document.getElementById('module-' + nazwa).classList.add('active');
+}
+</script>
+
+</body>
+</html>
