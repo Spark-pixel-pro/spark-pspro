@@ -22,7 +22,6 @@ SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 COHERE_API_KEY = os.environ["COHERE_API_KEY"]
 FIRMA_NAZWA = os.environ["FIRMA_NAZWA"]
-PRACOWNICY_HASLO = os.environ["PRACOWNICY_HASLO"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -44,6 +43,36 @@ def root():
     return {"status": "Spark API działa"}
 
 
+# ====== LOGOWANIE PRACOWNIKÓW ======
+class DaneLogowania(BaseModel):
+    email: str
+    haslo: str
+
+
+def zweryfikuj_pracownika(email: str, haslo: str):
+    response = supabase.table("pracownicy").select("*").eq("email", email).execute()
+    if not response.data:
+        return None
+    pracownik = response.data[0]
+    if pracownik["haslo"] != haslo:
+        return None
+    return pracownik
+
+
+@app.post("/login")
+def login(dane: DaneLogowania):
+    pracownik = zweryfikuj_pracownika(dane.email, dane.haslo)
+    if not pracownik:
+        raise HTTPException(status_code=403, detail="Nieprawidłowy email lub hasło")
+    return {
+        "imie": pracownik["imie"],
+        "nazwisko": pracownik["nazwisko"],
+        "email": pracownik["email"],
+        "stanowisko": pracownik.get("stanowisko", "")
+    }
+
+
+# ====== STATYSTYKI (Dashboard) ======
 @app.get("/stats")
 def get_stats():
     response = supabase.table("klienci").select("*").execute()
@@ -90,7 +119,9 @@ def get_stats():
     return wyczysc_nan(wynik)
 
 
+# ====== ŚWIADECTWA ======
 class DaneSwiadectwa(BaseModel):
+    email: str
     haslo: str
     rodzaj: str
     przeznaczenie: str
@@ -128,8 +159,9 @@ def znajdz_przyklady_stylu(zapytanie, match_count=3):
 
 @app.post("/generate-certificate-description")
 def generate_certificate_description(dane: DaneSwiadectwa):
-    if dane.haslo != PRACOWNICY_HASLO:
-        raise HTTPException(status_code=403, detail="Nieprawidłowe hasło")
+    pracownik = zweryfikuj_pracownika(dane.email, dane.haslo)
+    if not pracownik:
+        raise HTTPException(status_code=403, detail="Nieprawidłowy email lub hasło")
 
     przyklady = znajdz_przyklady_stylu(f"opis świadectwa energetycznego {dane.rodzaj}")
     info_przyklady = f"\n\nPrzykłady stylu opisowego z wcześniejszych dokumentów firmy (wzoruj się na tonie, NIE kopiuj liczb):\n{przyklady}" if przyklady else ""
@@ -168,4 +200,11 @@ Zasady:
         model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}]
     )
+
+    supabase.table("wiedza_dokumenty_wygenerowane").insert({
+        "typ": "opis_swiadectwa",
+        "wygenerowane_przez": f"{pracownik['imie']} {pracownik['nazwisko']}",
+        "tresc": completion.choices[0].message.content
+    }).execute() if False else None
+
     return {"opis": completion.choices[0].message.content}
