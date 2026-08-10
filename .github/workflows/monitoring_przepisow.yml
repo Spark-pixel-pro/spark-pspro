@@ -1,0 +1,29 @@
+name: Monitoring przepisów
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  sprawdz-przepisy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Ustaw Pythona
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Zainstaluj zależności
+        run: pip install groq
+
+      - name: Uruchom monitoring przepisów
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
+          GMAIL_HASLO: ${{ secrets.GMAIL_HASLO }}
+          FIRMA_NAZWA: ${{ secrets.FIRMA_NAZWA }}
+        run: python monitoring_przepisow.py
