@@ -59,6 +59,25 @@ def zapytaj_z_ponowieniem(prompt, max_prob=3):
     return "Nie udało się uzyskać odpowiedzi po kilku próbach (limit zapytań)."
 
 
+def zapytaj_bez_wyszukiwania_z_ponowieniem(prompt, max_prob=3):
+    for proba in range(max_prob):
+        try:
+            completion = groq_client.chat.completions.create(
+                model="openai/gpt-oss-120b",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return completion.choices[0].message.content
+        except Exception as e:
+            tekst_bledu = str(e)
+            if "429" in tekst_bledu:
+                czas_oczekiwania = 35
+                print(f"Limit zapytań osiągnięty, czekam {czas_oczekiwania}s (próba {proba + 1}/{max_prob})...")
+                time.sleep(czas_oczekiwania)
+            else:
+                return f"Nie udało się przygotować interpretacji: {e}"
+    return "Nie udało się uzyskać odpowiedzi po kilku próbach (limit zapytań)."
+
+
 def sprawdz_temat(zapytanie):
     prompt = f"""Sprawdź w internecie, czy w ciągu ostatnich 30 dni pojawiły się w Polsce nowe lub zmienione przepisy dotyczące: {zapytanie}
 
@@ -77,6 +96,30 @@ Jeśli nic nie jest obecnie planowane, napisz wprost: "Brak zapowiedzianych zmia
 Jeśli coś się szykuje, opisz krótko w punktach: czego dotyczy, na jakim jest etapie, przewidywany termin.
 Odpowiadaj po polsku, maksymalnie 120 słów."""
     return zapytaj_z_ponowieniem(prompt)
+
+
+def wyjasnij_praktyczne_znaczenie(nazwa_bazowa, wynik_wsteczny, wynik_nadchodzacy):
+    if "Brak istotnych zmian" in wynik_wsteczny and "Brak zapowiedzianych zmian" in wynik_nadchodzacy:
+        return "Brak zmian wymagających działania — nic obecnie nie wpływa na sposób pracy firmy w tym obszarze."
+
+    prompt = f"""Jesteś doradcą firmy {FIRMA_NAZWA}, zajmującej się świadectwami charakterystyki energetycznej budynków.
+
+Na podstawie poniższych informacji o zmianach w przepisach dotyczących: {nazwa_bazowa}
+
+CO SIĘ JUŻ ZMIENIŁO:
+{wynik_wsteczny}
+
+CO SIĘ SZYKUJE:
+{wynik_nadchodzacy}
+
+Wyjaśnij w 3-5 zdaniach, PRAKTYCZNIE, co te zmiany oznaczają konkretnie dla firmy zajmującej się świadectwami energetycznymi:
+- Czy trzeba coś zmienić w sposobie pracy?
+- Czy są jakieś terminy, o których trzeba pamiętać?
+- Czy to wymaga działania teraz, czy można poczekać?
+
+Jeśli nie ma żadnych praktycznych konsekwencji, napisz to wprost. Nie zmyślaj informacji, których nie ma powyżej. Odpowiadaj po polsku."""
+
+    return zapytaj_bez_wyszukiwania_z_ponowieniem(prompt)
 
 
 def wygeneruj_pdf(wyniki, sciezka_pliku):
@@ -98,9 +141,17 @@ def wygeneruj_pdf(wyniki, sciezka_pliku):
         "NaglowekSekcjiPL", parent=styles["Heading2"], fontName=FONT_BOLD,
         fontSize=12, textColor=HexColor("#E8792C"), spaceBefore=16, spaceAfter=8
     )
+    styl_naglowek_praktyczny = ParagraphStyle(
+        "NaglowekPraktycznyPL", parent=styles["Heading3"], fontName=FONT_BOLD,
+        fontSize=10.5, textColor=HexColor("#12294D"), spaceBefore=10, spaceAfter=6
+    )
     styl_tresc = ParagraphStyle(
         "TrescPL", parent=styles["Normal"], fontName=FONT_NORMAL,
         fontSize=10, leading=15, textColor=HexColor("#1A1A1A")
+    )
+    styl_praktyczny = ParagraphStyle(
+        "PraktycznyPL", parent=styl_tresc, backColor=HexColor("#FFF8E1"),
+        borderPadding=8, leading=15
     )
 
     elementy = []
@@ -110,10 +161,16 @@ def wygeneruj_pdf(wyniki, sciezka_pliku):
         styl_podtytul
     ))
 
-    for temat, wynik in wyniki:
+    for temat, wynik, praktyczne_znaczenie in wyniki:
         elementy.append(Paragraph(temat, styl_naglowek_sekcji))
         tresc_html = wynik.replace("\n", "<br/>")
         elementy.append(Paragraph(tresc_html, styl_tresc))
+
+        if praktyczne_znaczenie:
+            elementy.append(Paragraph("Co to oznacza dla firmy:", styl_naglowek_praktyczny))
+            praktyczne_html = praktyczne_znaczenie.replace("\n", "<br/>")
+            elementy.append(Paragraph(praktyczne_html, styl_praktyczny))
+
         elementy.append(Spacer(1, 10))
 
     elementy.append(Spacer(1, 20))
@@ -131,9 +188,11 @@ def wyslij_podsumowanie(wyniki, sciezka_pdf):
     msg["To"] = GMAIL_EMAIL
     msg["Subject"] = f"⚖️ Monitoring przepisów — {FIRMA_NAZWA} — {datetime.now().strftime('%d.%m.%Y')}"
 
-    tresc = f"Cotygodniowe sprawdzenie aktualności przepisów dla {FIRMA_NAZWA}.\n\nPełny raport w załączonym pliku PDF.\n\n"
-    for temat, wynik in wyniki:
+    tresc = f"Comiesięczne sprawdzenie aktualności przepisów dla {FIRMA_NAZWA}.\n\nPełny raport z praktyczną interpretacją w załączonym pliku PDF.\n\n"
+    for temat, wynik, praktyczne in wyniki:
         tresc += f"{'='*50}\n{temat}\n{'='*50}\n{wynik}\n\n"
+        if praktyczne:
+            tresc += f"CO TO OZNACZA: {praktyczne}\n\n"
 
     msg.attach(MIMEText(tresc, "plain"))
 
@@ -162,7 +221,6 @@ if __name__ == "__main__":
 
         print(f"Sprawdzam zmiany wsteczne: {nazwa_bazowa}...")
         wynik_wsteczny = sprawdz_temat(zapytanie)
-        wyniki.append((f"{nazwa_bazowa} — co się już zmieniło", wynik_wsteczny))
         print(wynik_wsteczny)
 
         print("Czekam przed kolejnym zapytaniem...")
@@ -170,9 +228,17 @@ if __name__ == "__main__":
 
         print(f"Sprawdzam nadchodzące zmiany: {nazwa_bazowa}...")
         wynik_nadchodzacy = sprawdz_nadchodzace_zmiany(zapytanie)
-        wyniki.append((f"{nazwa_bazowa} — co się szykuje", wynik_nadchodzacy))
         print(wynik_nadchodzacy)
+
+        print("Czekam przed przygotowaniem interpretacji...")
+        time.sleep(20)
+
+        print(f"Przygotowuję praktyczną interpretację: {nazwa_bazowa}...")
+        praktyczne_znaczenie = wyjasnij_praktyczne_znaczenie(nazwa_bazowa, wynik_wsteczny, wynik_nadchodzacy)
+        print(praktyczne_znaczenie)
         print()
+
+        wyniki.append((f"{nazwa_bazowa}", f"CO SIĘ ZMIENIŁO:\n{wynik_wsteczny}\n\nCO SIĘ SZYKUJE:\n{wynik_nadchodzacy}", praktyczne_znaczenie))
 
         time.sleep(20)
 
