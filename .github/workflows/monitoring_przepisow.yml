@@ -18,7 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: Zainstaluj zależności
-        run: pip install groq
+        run: pip install groq reportlab
 
       - name: Uruchom monitoring przepisów
         env:
