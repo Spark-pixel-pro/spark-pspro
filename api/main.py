@@ -247,3 +247,35 @@ Zasady:
         messages=[{"role": "user", "content": prompt}]
     )
     return {"tresc": completion.choices[0].message.content}
+import requests as http_requests
+
+GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GITHUB_REPO = "Spark-pixel-pro/spark-pspro"
+GITHUB_WORKFLOW = "monitoring_przepisow.yml"
+
+
+class DaneLogowaniaSame(BaseModel):
+    email: str
+    haslo: str
+
+
+@app.post("/trigger-przepisy-check")
+def trigger_przepisy_check(dane: DaneLogowaniaSame):
+    pracownik = zweryfikuj_pracownika(dane.email, dane.haslo)
+    if not pracownik:
+        raise HTTPException(status_code=403, detail="Nieprawidłowy email lub hasło")
+
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/workflows/{GITHUB_WORKFLOW}/dispatches"
+    response = http_requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        },
+        json={"ref": "main"}
+    )
+
+    if response.status_code == 204:
+        return {"status": "uruchomiono", "wiadomosc": "Sprawdzanie przepisów rozpoczęte. Pełny raport przyjdzie mailem za kilka minut."}
+    else:
+        raise HTTPException(status_code=500, detail=f"Nie udało się uruchomić sprawdzania: {response.status_code} {response.text}")
