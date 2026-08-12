@@ -194,8 +194,17 @@
         <div class="module" id="module-onboarding">
           <p class="placeholder">📚 Onboarding — jeszcze nie zbudowane.</p>
         </div>
+
         <div class="module" id="module-przepisy">
-          <p class="placeholder">⚖️ Monitorowanie przepisów — dostępne mailem, panel wkrótce.</p>
+          <div class="form-card" style="text-align:center; padding:40px 24px;">
+            <p style="color:var(--text-muted); margin-bottom:20px;">
+              Monitoring przepisów budowlanych i świadectw energetycznych uruchamia się automatycznie raz w miesiącu.<br>
+              Możesz też sprawdzić na żądanie — wynik przyjdzie mailem za kilka minut.
+            </p>
+            <button class="generate-btn" id="przGenerateBtn" onclick="uruchomSprawdzeniePrzepisow()">🔍 Sprawdź teraz</button>
+            <div class="error-msg" id="przErrorMsg"></div>
+            <div id="przSuccessMsg" style="display:none; color:#4ADE80; font-size:0.88rem; margin-top:14px;"></div>
+          </div>
         </div>
 
         <div class="module" id="module-maile">
@@ -378,6 +387,40 @@ async function generujMail() {
   } finally {
     btn.disabled = false;
     btn.textContent = "✨ Wygeneruj mail";
+  }
+}
+
+async function uruchomSprawdzeniePrzepisow() {
+  const btn = document.getElementById('przGenerateBtn');
+  const errorEl = document.getElementById('przErrorMsg');
+  const successEl = document.getElementById('przSuccessMsg');
+  errorEl.textContent = '';
+  successEl.style.display = 'none';
+
+  btn.disabled = true;
+  btn.textContent = "Uruchamiam...";
+
+  try {
+    const response = await fetch(API_URL + "/trigger-przepisy-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: zalogowanyPracownik.email,
+        haslo: zalogowanyPracownik.haslo
+      })
+    });
+
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const data = await response.json();
+    successEl.textContent = "✓ " + data.wiadomosc;
+    successEl.style.display = 'block';
+
+  } catch (err) {
+    errorEl.textContent = "Nie udało się uruchomić sprawdzania: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔍 Sprawdź teraz";
   }
 }
 </script>
