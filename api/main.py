@@ -200,11 +200,50 @@ Zasady:
         model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}]
     )
-
-    supabase.table("wiedza_dokumenty_wygenerowane").insert({
-        "typ": "opis_swiadectwa",
-        "wygenerowane_przez": f"{pracownik['imie']} {pracownik['nazwisko']}",
-        "tresc": completion.choices[0].message.content
-    }).execute() if False else None
-
     return {"opis": completion.choices[0].message.content}
+
+
+# ====== ASYSTENT MALI DO KLIENTÓW ======
+class DaneMaila(BaseModel):
+    email: str
+    haslo: str
+    sytuacja: str
+    wiadomosc_klienta: str = ""
+    ton: str = "neutralny"
+
+
+@app.post("/generate-client-email")
+def generate_client_email(dane: DaneMaila):
+    pracownik = zweryfikuj_pracownika(dane.email, dane.haslo)
+    if not pracownik:
+        raise HTTPException(status_code=403, detail="Nieprawidłowy email lub hasło")
+
+    kontekst_wiedzy = znajdz_przyklady_stylu(dane.sytuacja, match_count=3)
+    info_wiedza = f"\n\nKontekst z firmowej bazy wiedzy (fakty, procedury, cennik — użyj jeśli pasuje):\n{kontekst_wiedzy}" if kontekst_wiedzy else ""
+    info_wiadomosc = f"\n\nOryginalna wiadomość od klienta, na którą odpowiadasz:\n\"{dane.wiadomosc_klienta}\"" if dane.wiadomosc_klienta else ""
+
+    opisy_tonu = {
+        "neutralny": "profesjonalny, uprzejmy",
+        "cieply": "ciepły, przyjazny, ale wciąż profesjonalny",
+        "formalny": "formalny, rzeczowy"
+    }
+    ton_opis = opisy_tonu.get(dane.ton, "profesjonalny, uprzejmy")
+
+    prompt = f"""Jesteś asystentem firmy {FIRMA_NAZWA}. Napisz gotowy mail do klienta.
+
+Sytuacja: {dane.sytuacja}{info_wiadomosc}{info_wiedza}
+
+Zasady:
+- Pisz po polsku, tonem: {ton_opis}
+- Jeśli masz kontekst z bazy wiedzy (ceny, procedury, terminy) — wykorzystaj go, ale NIE zmyślaj faktów, których tam nie ma
+- Jeśli nie masz pewnych informacji (np. dokładnej ceny), napisz to ogólnie i zasugeruj kontakt telefoniczny zamiast zmyślać liczby
+- Struktura: krótkie powitanie, sedno sprawy, jasne zakończenie z następnym krokiem
+- Długość: 80-150 słów
+- Nie dodawaj tematu maila, tylko treść
+- Podpisz jako "Zespół {FIRMA_NAZWA}\""""
+
+    completion = groq_client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return {"tresc": completion.choices[0].message.content}
