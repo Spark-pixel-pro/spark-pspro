@@ -15,7 +15,6 @@
     background: var(--bg); color: var(--text); line-height: 1.5;
   }
 
-  /* EKRAN LOGOWANIA */
   #loginScreen {
     min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
   }
@@ -41,7 +40,6 @@
   }
   .login-error { color: #ff9a9a; font-size: 0.83rem; margin-top: 12px; text-align: center; }
 
-  /* PANEL GŁÓWNY */
   #mainApp { display: none; }
   .topbar {
     background: var(--surface); border-bottom: 1px solid var(--border);
@@ -70,7 +68,6 @@
   .module.active { display: block; }
   .placeholder { color: var(--text-muted); padding: 60px 20px; text-align: center; }
 
-  /* FORMULARZ ŚWIADECTW */
   .section-label {
     font-size: 0.78rem; font-weight: 600; letter-spacing: 1.2px; color: var(--text-muted);
     text-transform: uppercase; margin: 24px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
@@ -198,10 +195,37 @@
           <p class="placeholder">📚 Onboarding — jeszcze nie zbudowane.</p>
         </div>
         <div class="module" id="module-przepisy">
-          <p class="placeholder">⚖️ Monitorowanie przepisów — jeszcze nie zbudowane.</p>
+          <p class="placeholder">⚖️ Monitorowanie przepisów — dostępne mailem, panel wkrótce.</p>
         </div>
+
         <div class="module" id="module-maile">
-          <p class="placeholder">✉️ Asystent maili — jeszcze nie zbudowane.</p>
+          <div class="section-label">1 · Sytuacja</div>
+          <div class="form-card">
+            <div class="field" style="margin-bottom:16px;">
+              <label>Opisz sytuację / cel maila</label>
+              <input id="ml_sytuacja" placeholder="np. przypomnienie o terminie płatności, odpowiedź na pytanie o cennik">
+            </div>
+            <div class="field" style="margin-bottom:16px;">
+              <label>Wiadomość od klienta (opcjonalnie, jeśli odpowiadasz na coś konkretnego)</label>
+              <input id="ml_wiadomosc" placeholder="Wklej lub streść co napisał klient...">
+            </div>
+            <div class="field">
+              <label>Ton wiadomości</label>
+              <select id="ml_ton" style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:0.9rem;">
+                <option value="neutralny">Neutralny / profesjonalny</option>
+                <option value="cieply">Ciepły / przyjazny</option>
+                <option value="formalny">Formalny</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="generate-btn" id="mlGenerateBtn" onclick="generujMail()">✨ Wygeneruj mail</button>
+          <div class="error-msg" id="mlErrorMsg"></div>
+
+          <div class="result-card" id="mlResultCard">
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:10px;">⚠️ Zawsze zweryfikuj treść przed wysłaniem do klienta.</p>
+            <textarea id="mlResultText"></textarea>
+          </div>
         </div>
 
       </div>
@@ -310,6 +334,50 @@ async function generujOpisSwiadectwa() {
   } finally {
     btn.disabled = false;
     btn.textContent = "✨ Wygeneruj opis dla klienta";
+  }
+}
+
+async function generujMail() {
+  const btn = document.getElementById('mlGenerateBtn');
+  const errorEl = document.getElementById('mlErrorMsg');
+  errorEl.textContent = '';
+
+  const sytuacja = document.getElementById('ml_sytuacja').value;
+  const wiadomosc = document.getElementById('ml_wiadomosc').value;
+  const ton = document.getElementById('ml_ton').value;
+
+  if (!sytuacja) {
+    errorEl.textContent = "Opisz sytuację, żeby wygenerować mail.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Generuję...";
+
+  try {
+    const response = await fetch(API_URL + "/generate-client-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: zalogowanyPracownik.email,
+        haslo: zalogowanyPracownik.haslo,
+        sytuacja: sytuacja,
+        wiadomosc_klienta: wiadomosc,
+        ton: ton
+      })
+    });
+
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const data = await response.json();
+    document.getElementById('mlResultText').value = data.tresc;
+    document.getElementById('mlResultCard').style.display = 'block';
+
+  } catch (err) {
+    errorEl.textContent = "Nie udało się wygenerować maila: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ Wygeneruj mail";
   }
 }
 </script>
