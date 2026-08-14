@@ -7,93 +7,161 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0B0B0F; --surface: #16161D; --surface-2: #1E1E27;
-    --accent: #FFD600; --text: #F5F5F7; --text-muted: #8A8A94; --border: #2A2A33;
+    --bg: #0A0A0E; --surface: #14141B; --surface-2: #1C1C25;
+    --accent: #FFD600; --text: #F5F5F7; --text-muted: #8A8A94; --border: #26262F;
+    --c-orange: #F5A623; --c-blue: #4A9EFF; --c-green: #4ADE80; --c-purple: #A78BFA;
   }
   body {
     font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--text); line-height: 1.5;
+    position: relative;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,214,0,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,214,0,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
   }
 
   #loginScreen {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 1;
   }
   .login-box {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 40px; width: 100%; max-width: 380px;
+    padding: 40px; width: 100%; max-width: 380px; position: relative; overflow: hidden;
+  }
+  .login-box::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--c-blue), var(--c-green), var(--c-purple));
   }
   .login-box .badge {
     width: 52px; height: 52px; border-radius: 14px; background: var(--accent);
-    box-shadow: 0 0 24px rgba(255,214,0,0.4);
+    box-shadow: 0 0 30px rgba(255,214,0,0.5);
     display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px;
+    animation: pulseGlow 2.4s ease-in-out infinite;
   }
-  .login-box h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 24px rgba(255,214,0,0.4); }
+    50% { box-shadow: 0 0 40px rgba(255,214,0,0.7); }
+  }
+  .login-box .eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 2.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .login-box h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
   .login-box p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
   .login-box input {
     width: 100%; padding: 13px 16px; border-radius: 10px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;
+    transition: border-color 0.2s ease;
   }
   .login-box input:focus { outline: none; border-color: var(--accent); }
   .login-box button {
     width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent);
-    color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+    color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem; position: relative; overflow: hidden;
   }
   .login-error { color: #ff9a9a; font-size: 0.83rem; margin-top: 12px; text-align: center; }
 
-  #mainApp { display: none; }
+  #mainApp { display: none; position: relative; z-index: 1; }
   .topbar {
     background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;
   }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
   .badge-small {
     width: 36px; height: 36px; border-radius: 10px; background: var(--accent);
     display: flex; align-items: center; justify-content: center; font-size: 16px;
+    box-shadow: 0 0 18px rgba(255,214,0,0.4);
   }
-  .topbar .title { font-weight: 700; font-size: 1rem; }
+  .topbar .title { font-weight: 800; font-size: 1rem; letter-spacing: -0.3px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 600;
+    color: var(--c-green); letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25);
+    padding: 5px 12px; border-radius: 20px;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); animation: dotPulse 1.6s infinite; }
+  @keyframes dotPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(74,222,128,0); } }
   .user-info { font-size: 0.83rem; color: var(--text-muted); text-align: right; }
-  .user-info .name { color: var(--text); font-weight: 600; }
+  .user-info .name { color: var(--text); font-weight: 700; }
 
-  .layout { display: flex; min-height: calc(100vh - 69px); }
-  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px; }
+  .layout { display: flex; min-height: calc(100vh - 61px); }
+  .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px; }
   .nav-item {
-    padding: 12px 16px; border-radius: 10px; font-size: 0.88rem; font-weight: 500;
+    padding: 12px 14px; border-radius: 10px; font-size: 0.87rem; font-weight: 600;
     color: var(--text-muted); cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;
+    transition: background 0.15s ease, color 0.15s ease; position: relative;
   }
+  .nav-item .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--nav-color, var(--text-muted)); opacity: 0.4; transition: opacity 0.2s ease; flex-shrink: 0; }
   .nav-item:hover { background: var(--surface-2); color: var(--text); }
-  .nav-item.active { background: rgba(255,214,0,0.1); color: var(--accent); }
+  .nav-item.active { background: var(--surface-2); color: var(--text); }
+  .nav-item.active .nav-dot { opacity: 1; box-shadow: 0 0 8px var(--nav-color); animation: dotPulse 1.6s infinite; }
+  .nav-item[data-module="swiadectwa"] { --nav-color: var(--c-orange); }
+  .nav-item[data-module="onboarding"] { --nav-color: var(--c-purple); }
+  .nav-item[data-module="przepisy"] { --nav-color: var(--c-blue); }
+  .nav-item[data-module="maile"] { --nav-color: var(--c-green); }
 
-  .content { flex: 1; padding: 32px 40px; overflow-y: auto; }
-  .module { display: none; }
+  .content { flex: 1; padding: 36px 44px; overflow-y: auto; }
+  .module { display: none; animation: fadeSlideIn 0.35s ease; }
   .module.active { display: block; }
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .placeholder { color: var(--text-muted); padding: 60px 20px; text-align: center; }
 
+  /* NAGŁÓWEK MODUŁU — styl edytorski */
+  .module-eyebrow {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--mod-color, var(--accent)); margin-bottom: 10px;
+  }
+  .module-headline {
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-bottom: 20px;
+  }
+  .module-divider {
+    height: 2px; border: none; margin: 0 0 28px;
+    background: linear-gradient(90deg, var(--mod-color, var(--accent)), transparent 70%);
+  }
+  #module-swiadectwa { --mod-color: var(--c-orange); }
+  #module-onboarding { --mod-color: var(--c-purple); }
+  #module-przepisy { --mod-color: var(--c-blue); }
+  #module-maile { --mod-color: var(--c-green); }
+
   .section-label {
-    font-size: 0.78rem; font-weight: 600; letter-spacing: 1.2px; color: var(--text-muted);
-    text-transform: uppercase; margin: 24px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 1.6px; color: var(--text-muted);
+    text-transform: uppercase; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
   }
   .warning-banner {
-    background: rgba(255,214,0,0.08); border: 1px solid rgba(255,214,0,0.35);
-    border-radius: 12px; padding: 14px 18px; margin: 0 0 20px; font-size: 0.88rem;
+    background: rgba(255,214,0,0.06); border: 1px solid rgba(255,214,0,0.3);
+    border-radius: 12px; padding: 14px 18px; margin: 0 0 22px; font-size: 0.88rem;
   }
-  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin-bottom: 8px; }
+
+  .form-card {
+    background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--mod-color, var(--border));
+    border-radius: 14px; padding: 24px 26px; margin-bottom: 8px;
+    transition: border-color 0.2s ease;
+  }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  .field label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 6px; }
-  .field input {
+  .field label { display: block; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+  .field input, .field select {
     width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--text); font-size: 0.9rem;
+    background: var(--surface-2); color: var(--text); font-size: 0.9rem; transition: border-color 0.2s ease;
   }
-  .field input:focus { outline: none; border-color: var(--accent); }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--mod-color, var(--accent)); }
+
   .generate-btn {
-    background: var(--accent); color: #1A1600; border: none; padding: 13px 28px;
-    border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 12px;
+    background: var(--accent); color: #1A1600; border: none; padding: 13px 30px;
+    border-radius: 10px; font-weight: 800; font-size: 0.92rem; cursor: pointer; margin-top: 14px;
+    position: relative; overflow: hidden; letter-spacing: 0.2px;
   }
-  .generate-btn:hover { box-shadow: 0 6px 18px rgba(255,214,0,0.35); }
+  .generate-btn::after {
+    content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
+    transform: skewX(-20deg); transition: left 0.5s ease;
+  }
+  .generate-btn:hover::after { left: 120%; }
   .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .generate-btn:disabled::after { display: none; }
+
   .result-card {
-    background: var(--surface); border: 1px solid rgba(255,214,0,0.27); border-radius: 14px;
-    padding: 22px 24px; margin-top: 20px; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--mod-color, var(--accent));
+    border-radius: 14px; padding: 22px 24px; margin-top: 22px; display: none;
   }
   .result-card textarea {
     width: 100%; min-height: 240px; background: var(--surface-2); border: 1px solid var(--border);
@@ -105,6 +173,8 @@
     .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
     .layout { flex-direction: column; }
     .sidebar { width: 100%; display: flex; overflow-x: auto; }
+    .content { padding: 24px 20px; }
+    .module-headline { font-size: 1.5rem; }
   }
 </style>
 </head>
@@ -113,6 +183,7 @@
   <div id="loginScreen">
     <div class="login-box">
       <div class="badge">S</div>
+      <div class="eyebrow">System Spark</div>
       <h1>Panel Pracownika</h1>
       <p>Zaloguj się, żeby uzyskać dostęp do narzędzi Sparka</p>
       <input type="email" id="emailInput" placeholder="Email">
@@ -128,6 +199,7 @@
         <div class="badge-small">S</div>
         <div class="title">Panel Pracownika</div>
       </div>
+      <div class="status-pill"><span class="status-dot"></span> System online</div>
       <div class="user-info">
         <div class="name" id="userName"></div>
         <div id="userStanowisko"></div>
@@ -136,21 +208,25 @@
 
     <div class="layout">
       <div class="sidebar">
-        <div class="nav-item active" data-module="swiadectwa" onclick="przelaczModul('swiadectwa')">📄 Świadectwa</div>
-        <div class="nav-item" data-module="onboarding" onclick="przelaczModul('onboarding')">📚 Onboarding</div>
-        <div class="nav-item" data-module="przepisy" onclick="przelaczModul('przepisy')">⚖️ Przepisy</div>
-        <div class="nav-item" data-module="maile" onclick="przelaczModul('maile')">✉️ Maile</div>
+        <div class="nav-item active" data-module="swiadectwa" onclick="przelaczModul('swiadectwa')"><span class="nav-dot"></span> Świadectwa</div>
+        <div class="nav-item" data-module="onboarding" onclick="przelaczModul('onboarding')"><span class="nav-dot"></span> Onboarding</div>
+        <div class="nav-item" data-module="przepisy" onclick="przelaczModul('przepisy')"><span class="nav-dot"></span> Przepisy</div>
+        <div class="nav-item" data-module="maile" onclick="przelaczModul('maile')"><span class="nav-dot"></span> Maile</div>
       </div>
 
       <div class="content">
 
         <div class="module active" id="module-swiadectwa">
+          <div class="module-eyebrow">01 · Dokumentacja energetyczna</div>
+          <div class="module-headline">Asystent świadectw</div>
+          <hr class="module-divider">
+
           <div class="warning-banner">
             ⚠️ Ten panel <b>nie liczy fizyki budynku</b>. Wszystkie wartości liczbowe (EU, EK, EP, CO2) wprowadź
             z Waszego certyfikowanego oprogramowania audytorskiego. Spark wyłącznie opisuje i formatuje gotowe wyniki.
           </div>
 
-          <div class="section-label">1 · Dane budynku</div>
+          <div class="section-label">Dane budynku</div>
           <div class="form-card">
             <div class="form-grid">
               <div class="field"><label>Rodzaj budynku</label><input id="sw_rodzaj" placeholder="np. budynek mieszkalny jednorodzinny"></div>
@@ -162,7 +238,7 @@
             </div>
           </div>
 
-          <div class="section-label">2 · Wskaźniki (już obliczone)</div>
+          <div class="section-label">Wskaźniki (już obliczone)</div>
           <div class="form-card">
             <div class="form-grid-3">
               <div class="field"><label>EU [kWh/(m²·rok)]</label><input id="sw_eu" type="number" step="0.1"></div>
@@ -174,7 +250,7 @@
             </div>
           </div>
 
-          <div class="section-label">3 · Źródła energii</div>
+          <div class="section-label">Źródła energii</div>
           <div class="form-card">
             <div class="form-grid">
               <div class="field"><label>Źródło ogrzewania</label><input id="sw_zrodlo_ogrzewanie" placeholder="np. kocioł gazowy kondensacyjny"></div>
@@ -192,10 +268,17 @@
         </div>
 
         <div class="module" id="module-onboarding">
-          <p class="placeholder">📚 Onboarding — jeszcze nie zbudowane.</p>
+          <div class="module-eyebrow">02 · Wdrożenie</div>
+          <div class="module-headline">Onboarding pracowników</div>
+          <hr class="module-divider">
+          <p class="placeholder">Moduł w budowie — wkrótce dostępny.</p>
         </div>
 
         <div class="module" id="module-przepisy">
+          <div class="module-eyebrow">03 · Zgodność prawna</div>
+          <div class="module-headline">Monitoring przepisów</div>
+          <hr class="module-divider">
+
           <div class="form-card" style="text-align:center; padding:32px 24px;">
             <p style="color:var(--text-muted); margin-bottom:20px;">
               Monitoring przepisów budowlanych i świadectw energetycznych uruchamia się automatycznie raz w miesiącu.<br>
@@ -203,7 +286,7 @@
             </p>
             <button class="generate-btn" id="przGenerateBtn" onclick="uruchomSprawdzeniePrzepisow()">🔍 Sprawdź teraz</button>
             <div class="error-msg" id="przErrorMsg"></div>
-            <div id="przSuccessMsg" style="display:none; color:#4ADE80; font-size:0.88rem; margin-top:14px;"></div>
+            <div id="przSuccessMsg" style="display:none; color:var(--c-green); font-size:0.88rem; margin-top:14px;"></div>
           </div>
 
           <div class="section-label">Ostatnie raporty</div>
@@ -211,19 +294,23 @@
         </div>
 
         <div class="module" id="module-maile">
-          <div class="section-label">1 · Sytuacja</div>
+          <div class="module-eyebrow">04 · Komunikacja</div>
+          <div class="module-headline">Asystent maili</div>
+          <hr class="module-divider">
+
+          <div class="section-label">Sytuacja</div>
           <div class="form-card">
             <div class="field" style="margin-bottom:16px;">
               <label>Opisz sytuację / cel maila</label>
               <input id="ml_sytuacja" placeholder="np. przypomnienie o terminie płatności, odpowiedź na pytanie o cennik">
             </div>
             <div class="field" style="margin-bottom:16px;">
-              <label>Wiadomość od klienta (opcjonalnie, jeśli odpowiadasz na coś konkretnego)</label>
+              <label>Wiadomość od klienta (opcjonalnie)</label>
               <input id="ml_wiadomosc" placeholder="Wklej lub streść co napisał klient...">
             </div>
             <div class="field">
               <label>Ton wiadomości</label>
-              <select id="ml_ton" style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:0.9rem;">
+              <select id="ml_ton">
                 <option value="neutralny">Neutralny / profesjonalny</option>
                 <option value="cieply">Ciepły / przyjazny</option>
                 <option value="formalny">Formalny</option>
@@ -452,7 +539,7 @@ async function wczytajRaportyPrzepisow() {
         <div class="form-card" style="margin-bottom:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <strong style="font-size:0.92rem;">📄 Raport z ${data_pl}</strong>
-            <a href="${r.pdf_url}" target="_blank" style="color:var(--accent); font-size:0.85rem; font-weight:600; text-decoration:none;">Pobierz PDF ↓</a>
+            <a href="${r.pdf_url}" target="_blank" style="color:var(--c-blue); font-size:0.85rem; font-weight:700; text-decoration:none;">Pobierz PDF ↓</a>
           </div>
           <p style="color:var(--text-muted); font-size:0.82rem; white-space:pre-line;">${(r.tresc_skrocona || '').slice(0, 300)}...</p>
         </div>
