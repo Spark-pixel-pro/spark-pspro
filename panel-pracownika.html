@@ -13,8 +13,7 @@
   }
   body {
     font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.5;
-    position: relative;
+    background: var(--bg); color: var(--text); line-height: 1.5; position: relative;
   }
   body::before {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -24,156 +23,113 @@
     background-size: 44px 44px;
   }
 
-  #loginScreen {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 1;
-  }
-  .login-box {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 40px; width: 100%; max-width: 380px; position: relative; overflow: hidden;
-  }
-  .login-box::before {
-    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, var(--accent), var(--c-blue), var(--c-green), var(--c-purple));
-  }
-  .login-box .badge {
-    width: 52px; height: 52px; border-radius: 14px; background: var(--accent);
-    box-shadow: 0 0 30px rgba(255,214,0,0.5);
-    display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px;
-    animation: pulseGlow 2.4s ease-in-out infinite;
-  }
-  @keyframes pulseGlow {
-    0%, 100% { box-shadow: 0 0 24px rgba(255,214,0,0.4); }
-    50% { box-shadow: 0 0 40px rgba(255,214,0,0.7); }
-  }
+  /* LOGOWANIE */
+  #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 1; }
+  .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; position: relative; overflow: hidden; }
+  .login-box::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--c-blue), var(--c-green), var(--c-purple)); }
+  .login-box .badge { width: 52px; height: 52px; border-radius: 14px; background: var(--accent); box-shadow: 0 0 30px rgba(255,214,0,0.5); display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; animation: pulseGlow 2.4s ease-in-out infinite; }
+  @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 24px rgba(255,214,0,0.4); } 50% { box-shadow: 0 0 40px rgba(255,214,0,0.7); } }
   .login-box .eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 2.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
   .login-box h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
   .login-box p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
-  .login-box input {
-    width: 100%; padding: 13px 16px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--text); font-size: 0.9rem; margin-bottom: 12px;
-    transition: border-color 0.2s ease;
-  }
+  .login-box input { width: 100%; padding: 13px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 0.9rem; margin-bottom: 12px; }
   .login-box input:focus { outline: none; border-color: var(--accent); }
-  .login-box button {
-    width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent);
-    color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem; position: relative; overflow: hidden;
-  }
+  .login-box button { width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent); color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
   .login-error { color: #ff9a9a; font-size: 0.83rem; margin-top: 12px; text-align: center; }
 
+  /* GŁÓWNA APLIKACJA */
   #mainApp { display: none; position: relative; z-index: 1; }
-  .topbar {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;
-  }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
-  .badge-small {
-    width: 36px; height: 36px; border-radius: 10px; background: var(--accent);
-    display: flex; align-items: center; justify-content: center; font-size: 16px;
-    box-shadow: 0 0 18px rgba(255,214,0,0.4);
-  }
+  .badge-small { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 0 18px rgba(255,214,0,0.4); }
   .topbar .title { font-weight: 800; font-size: 1rem; letter-spacing: -0.3px; }
-  .status-pill {
-    display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 600;
-    color: var(--c-green); letter-spacing: 1px; text-transform: uppercase;
-    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25);
-    padding: 5px 12px; border-radius: 20px;
-  }
+  .status-pill { display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 600; color: var(--c-green); letter-spacing: 1px; text-transform: uppercase; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); padding: 5px 12px; border-radius: 20px; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); animation: dotPulse 1.6s infinite; }
   @keyframes dotPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(74,222,128,0); } }
   .user-info { font-size: 0.83rem; color: var(--text-muted); text-align: right; }
   .user-info .name { color: var(--text); font-weight: 700; }
 
-  .layout { display: flex; min-height: calc(100vh - 61px); }
-  .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px; }
-  .nav-item {
-    padding: 12px 14px; border-radius: 10px; font-size: 0.87rem; font-weight: 600;
-    color: var(--text-muted); cursor: pointer; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;
-    transition: background 0.15s ease, color 0.15s ease; position: relative;
-  }
-  .nav-item .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--nav-color, var(--text-muted)); opacity: 0.4; transition: opacity 0.2s ease; flex-shrink: 0; }
-  .nav-item:hover { background: var(--surface-2); color: var(--text); }
-  .nav-item.active { background: var(--surface-2); color: var(--text); }
-  .nav-item.active .nav-dot { opacity: 1; box-shadow: 0 0 8px var(--nav-color); animation: dotPulse 1.6s infinite; }
-  .nav-item[data-module="swiadectwa"] { --nav-color: var(--c-orange); }
-  .nav-item[data-module="onboarding"] { --nav-color: var(--c-purple); }
-  .nav-item[data-module="przepisy"] { --nav-color: var(--c-blue); }
-  .nav-item[data-module="maile"] { --nav-color: var(--c-green); }
+  .main-area { max-width: 1000px; margin: 0 auto; padding: 20px 32px 60px; }
 
-  .content { flex: 1; padding: 36px 44px; overflow-y: auto; }
-  .module { display: none; animation: fadeSlideIn 0.35s ease; }
+  /* HUB — ORB */
+  #hubView { display: block; }
+  .orb-wrap { display: flex; flex-direction: column; align-items: center; padding: 44px 20px 8px; }
+  .orb { width: 168px; height: 168px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+  .orb-ring { position: absolute; border-radius: 50%; border: 1.5px solid rgba(255,214,0,0.35); animation: orbPulse 2.6s ease-out infinite; }
+  .orb-ring.r1 { inset: 0; animation-delay: 0s; }
+  .orb-ring.r2 { inset: 18px; animation-delay: 0.5s; }
+  .orb-ring.r3 { inset: 36px; animation-delay: 1s; }
+  @keyframes orbPulse { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.25); opacity: 0; } }
+  .orb-core { width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFEB80, var(--accent) 70%); box-shadow: 0 0 40px rgba(255,214,0,0.55), 0 0 80px rgba(255,214,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #1A1600; animation: coreBreathe 3s ease-in-out infinite; z-index: 2; }
+  @keyframes coreBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .orb-status { font-size: 0.86rem; color: var(--text-muted); margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+  .orb-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: dotPulse 1.6s infinite; }
+
+  .hub-chat { max-width: 620px; margin: 0 auto 28px; }
+  .hub-log { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; padding-right: 4px; }
+  .hub-bubble { padding: 10px 15px; border-radius: 12px; font-size: 0.88rem; max-width: 82%; line-height: 1.45; }
+  .hub-bubble.user { background: var(--accent); color: #1A1600; font-weight: 600; align-self: flex-end; }
+  .hub-bubble.bot { background: var(--surface); border: 1px solid var(--border); color: var(--text); align-self: flex-start; }
+  .hub-input-row { display: flex; gap: 10px; }
+  .hub-input-row input { flex: 1; padding: 13px 18px; border-radius: 24px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.9rem; }
+  .hub-input-row input:focus { outline: none; border-color: var(--accent); }
+  .hub-input-row button { width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--accent); color: #1A1600; font-size: 18px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .hub-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* KARTY MODUŁÓW NA HUBIE */
+  .widget-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 12px; }
+  .widget-card {
+    background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--card-color);
+    border-radius: 14px; padding: 20px 18px; cursor: pointer; transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+  .widget-card:hover { transform: translateY(-4px); border-color: var(--card-color); }
+  .widget-card .w-num { font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px; color: var(--card-color); margin-bottom: 10px; }
+  .widget-card .w-title { font-size: 0.98rem; font-weight: 700; margin-bottom: 6px; }
+  .widget-card .w-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+  .widget-card[data-mod="swiadectwa"] { --card-color: var(--c-orange); }
+  .widget-card[data-mod="onboarding"] { --card-color: var(--c-purple); }
+  .widget-card[data-mod="przepisy"] { --card-color: var(--c-blue); }
+  .widget-card[data-mod="maile"] { --card-color: var(--c-green); }
+
+  /* WIDOK MODUŁU */
+  #moduleView { display: none; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-bottom: 20px; padding: 8px 4px; }
+  .back-btn:hover { color: var(--text); }
+  .module { display: none; animation: fadeSlideIn 0.3s ease; }
   .module.active { display: block; }
   @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .placeholder { color: var(--text-muted); padding: 60px 20px; text-align: center; }
 
-  /* NAGŁÓWEK MODUŁU — styl edytorski */
-  .module-eyebrow {
-    font-size: 0.72rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
-    color: var(--mod-color, var(--accent)); margin-bottom: 10px;
-  }
-  .module-headline {
-    font-size: 1.9rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-bottom: 20px;
-  }
-  .module-divider {
-    height: 2px; border: none; margin: 0 0 28px;
-    background: linear-gradient(90deg, var(--mod-color, var(--accent)), transparent 70%);
-  }
+  .module-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--mod-color, var(--accent)); margin-bottom: 10px; }
+  .module-headline { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-bottom: 20px; }
+  .module-divider { height: 2px; border: none; margin: 0 0 28px; background: linear-gradient(90deg, var(--mod-color, var(--accent)), transparent 70%); }
   #module-swiadectwa { --mod-color: var(--c-orange); }
   #module-onboarding { --mod-color: var(--c-purple); }
   #module-przepisy { --mod-color: var(--c-blue); }
   #module-maile { --mod-color: var(--c-green); }
 
-  .section-label {
-    font-size: 0.75rem; font-weight: 700; letter-spacing: 1.6px; color: var(--text-muted);
-    text-transform: uppercase; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
-  }
-  .warning-banner {
-    background: rgba(255,214,0,0.06); border: 1px solid rgba(255,214,0,0.3);
-    border-radius: 12px; padding: 14px 18px; margin: 0 0 22px; font-size: 0.88rem;
-  }
+  .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 1.6px; color: var(--text-muted); text-transform: uppercase; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .warning-banner { background: rgba(255,214,0,0.06); border: 1px solid rgba(255,214,0,0.3); border-radius: 12px; padding: 14px 18px; margin: 0 0 22px; font-size: 0.88rem; }
+  .placeholder { color: var(--text-muted); padding: 60px 20px; text-align: center; }
 
-  .form-card {
-    background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--mod-color, var(--border));
-    border-radius: 14px; padding: 24px 26px; margin-bottom: 8px;
-    transition: border-color 0.2s ease;
-  }
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--mod-color, var(--border)); border-radius: 14px; padding: 24px 26px; margin-bottom: 8px; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
   .field label { display: block; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.3px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
-  .field input, .field select {
-    width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--text); font-size: 0.9rem; transition: border-color 0.2s ease;
-  }
+  .field input, .field select { width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 0.9rem; }
   .field input:focus, .field select:focus { outline: none; border-color: var(--mod-color, var(--accent)); }
 
-  .generate-btn {
-    background: var(--accent); color: #1A1600; border: none; padding: 13px 30px;
-    border-radius: 10px; font-weight: 800; font-size: 0.92rem; cursor: pointer; margin-top: 14px;
-    position: relative; overflow: hidden; letter-spacing: 0.2px;
-  }
-  .generate-btn::after {
-    content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
-    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
-    transform: skewX(-20deg); transition: left 0.5s ease;
-  }
-  .generate-btn:hover::after { left: 120%; }
+  .generate-btn { background: var(--accent); color: #1A1600; border: none; padding: 13px 30px; border-radius: 10px; font-weight: 800; font-size: 0.92rem; cursor: pointer; margin-top: 14px; }
+  .generate-btn:hover { box-shadow: 0 6px 18px rgba(255,214,0,0.35); }
   .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .generate-btn:disabled::after { display: none; }
 
-  .result-card {
-    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--mod-color, var(--accent));
-    border-radius: 14px; padding: 22px 24px; margin-top: 22px; display: none;
-  }
-  .result-card textarea {
-    width: 100%; min-height: 240px; background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--text); border-radius: 10px; padding: 14px; font-size: 0.9rem; font-family: inherit; resize: vertical;
-  }
+  .result-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--mod-color, var(--accent)); border-radius: 14px; padding: 22px 24px; margin-top: 22px; display: none; }
+  .result-card textarea { width: 100%; min-height: 240px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 14px; font-size: 0.9rem; font-family: inherit; resize: vertical; }
   .error-msg { color: #ff9a9a; font-size: 0.85rem; margin-top: 12px; }
 
-  @media (max-width: 800px) {
+  @media (max-width: 900px) {
+    .widget-grid { grid-template-columns: repeat(2, 1fr); }
     .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
-    .layout { flex-direction: column; }
-    .sidebar { width: 100%; display: flex; overflow-x: auto; }
-    .content { padding: 24px 20px; }
+    .main-area { padding: 16px 18px 40px; }
     .module-headline { font-size: 1.5rem; }
   }
 </style>
@@ -206,15 +162,55 @@
       </div>
     </div>
 
-    <div class="layout">
-      <div class="sidebar">
-        <div class="nav-item active" data-module="swiadectwa" onclick="przelaczModul('swiadectwa')"><span class="nav-dot"></span> Świadectwa</div>
-        <div class="nav-item" data-module="onboarding" onclick="przelaczModul('onboarding')"><span class="nav-dot"></span> Onboarding</div>
-        <div class="nav-item" data-module="przepisy" onclick="przelaczModul('przepisy')"><span class="nav-dot"></span> Przepisy</div>
-        <div class="nav-item" data-module="maile" onclick="przelaczModul('maile')"><span class="nav-dot"></span> Maile</div>
+    <div class="main-area">
+
+      <!-- HUB -->
+      <div id="hubView">
+        <div class="orb-wrap">
+          <div class="orb">
+            <div class="orb-ring r1"></div>
+            <div class="orb-ring r2"></div>
+            <div class="orb-ring r3"></div>
+            <div class="orb-core">S</div>
+          </div>
+          <div class="orb-status"><span class="dot"></span> <span id="hubStatusText">Zapytaj Sparka o cokolwiek...</span></div>
+        </div>
+
+        <div class="hub-chat">
+          <div class="hub-log" id="hubLog"></div>
+          <div class="hub-input-row">
+            <input type="text" id="hubInput" placeholder="Napisz wiadomość do Sparka...">
+            <button id="hubSendBtn" onclick="wyslijDoHuba()">➤</button>
+          </div>
+        </div>
+
+        <div class="widget-grid">
+          <div class="widget-card" data-mod="swiadectwa" onclick="wejdzDoModulu('swiadectwa')">
+            <div class="w-num">01</div>
+            <div class="w-title">📄 Świadectwa</div>
+            <div class="w-desc">Opisy dla klientów na podstawie obliczonych wskaźników energetycznych.</div>
+          </div>
+          <div class="widget-card" data-mod="onboarding" onclick="wejdzDoModulu('onboarding')">
+            <div class="w-num">02</div>
+            <div class="w-title">📚 Onboarding</div>
+            <div class="w-desc">Wdrożenie nowych pracowników — moduł w budowie.</div>
+          </div>
+          <div class="widget-card" data-mod="przepisy" onclick="wejdzDoModulu('przepisy')">
+            <div class="w-num">03</div>
+            <div class="w-title">⚖️ Przepisy</div>
+            <div class="w-desc">Monitoring zmian w prawie budowlanym i energetycznym.</div>
+          </div>
+          <div class="widget-card" data-mod="maile" onclick="wejdzDoModulu('maile')">
+            <div class="w-num">04</div>
+            <div class="w-title">✉️ Maile</div>
+            <div class="w-desc">Gotowe wiadomości do klientów, dopasowane do sytuacji.</div>
+          </div>
+        </div>
       </div>
 
-      <div class="content">
+      <!-- WIDOK MODUŁU -->
+      <div id="moduleView">
+        <div class="back-btn" onclick="powrotDoHuba()">← Powrót do huba</div>
 
         <div class="module active" id="module-swiadectwa">
           <div class="module-eyebrow">01 · Dokumentacja energetyczna</div>
@@ -334,6 +330,7 @@
 <script>
 const API_URL = "https://spark-api-pspro.onrender.com";
 let zalogowanyPracownik = null;
+let hubHistoria = [];
 
 async function zaloguj() {
   const email = document.getElementById('emailInput').value;
@@ -377,9 +374,9 @@ document.getElementById('haslInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') zaloguj();
 });
 
-function przelaczModul(nazwa) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  document.querySelector(`[data-module="${nazwa}"]`).classList.add('active');
+function wejdzDoModulu(nazwa) {
+  document.getElementById('hubView').style.display = 'none';
+  document.getElementById('moduleView').style.display = 'block';
   document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
   document.getElementById('module-' + nazwa).classList.add('active');
 
@@ -387,6 +384,63 @@ function przelaczModul(nazwa) {
     wczytajRaportyPrzepisow();
   }
 }
+
+function powrotDoHuba() {
+  document.getElementById('moduleView').style.display = 'none';
+  document.getElementById('hubView').style.display = 'block';
+}
+
+function dodajBankeHub(text, who) {
+  const log = document.getElementById('hubLog');
+  const div = document.createElement('div');
+  div.className = 'hub-bubble ' + who;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function wyslijDoHuba() {
+  const input = document.getElementById('hubInput');
+  const btn = document.getElementById('hubSendBtn');
+  const statusText = document.getElementById('hubStatusText');
+  const wiadomosc = input.value.trim();
+  if (!wiadomosc) return;
+
+  dodajBankeHub(wiadomosc, 'user');
+  input.value = '';
+  btn.disabled = true;
+  statusText.textContent = "Myślę...";
+
+  try {
+    const response = await fetch(API_URL + "/chat-hub", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: zalogowanyPracownik.email,
+        haslo: zalogowanyPracownik.haslo,
+        wiadomosc: wiadomosc,
+        historia: hubHistoria
+      })
+    });
+
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const data = await response.json();
+    dodajBankeHub(data.odpowiedz, 'bot');
+    hubHistoria.push({ role: "user", content: wiadomosc });
+    hubHistoria.push({ role: "assistant", content: data.odpowiedz });
+
+  } catch (err) {
+    dodajBankeHub("Nie udało się połączyć: " + err.message, 'bot');
+  } finally {
+    btn.disabled = false;
+    statusText.textContent = "Zapytaj Sparka o cokolwiek...";
+  }
+}
+
+document.getElementById('hubInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') wyslijDoHuba();
+});
 
 async function generujOpisSwiadectwa() {
   const btn = document.getElementById('swGenerateBtn');
