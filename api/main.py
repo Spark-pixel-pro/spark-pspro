@@ -279,3 +279,8 @@ def trigger_przepisy_check(dane: DaneLogowaniaSame):
         return {"status": "uruchomiono", "wiadomosc": "Sprawdzanie przepisów rozpoczęte. Pełny raport przyjdzie mailem za kilka minut."}
     else:
         raise HTTPException(status_code=500, detail=f"Nie udało się uruchomić sprawdzania: {response.status_code} {response.text}")
+@app.get("/przepisy-raporty")
+def get_przepisy_raporty():
+    response = supabase.table("raporty_przepisow").select("*").order("data_utworzenia", desc=True).limit(10).execute()
+    dane = response.data or []
+    return {"raporty": dane}
