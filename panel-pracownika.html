@@ -24,7 +24,6 @@
   }
   .mono { font-family: 'SF Mono', 'Courier New', monospace; }
 
-  /* LOGOWANIE */
   #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 1; }
   .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; position: relative; overflow: hidden; }
   .login-box::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--c-blue), var(--c-green), var(--c-purple)); }
@@ -38,7 +37,6 @@
   .login-box button { width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent); color: #1A1600; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
   .login-error { color: #ff9a9a; font-size: 0.83rem; margin-top: 12px; text-align: center; }
 
-  /* GŁÓWNA APLIKACJA */
   #mainApp { display: none; position: relative; z-index: 1; }
   .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
   .topbar-left { display: flex; align-items: center; gap: 12px; }
@@ -52,7 +50,6 @@
 
   .main-area { max-width: 1000px; margin: 0 auto; padding: 20px 32px 60px; }
 
-  /* HUB — ORB Z HUD */
   #hubView { display: block; }
   .orb-frame { position: relative; display: flex; flex-direction: column; align-items: center; padding: 50px 20px 8px; }
 
@@ -63,7 +60,7 @@
   .hud-corner.bl { bottom: 34px; left: calc(50% - 150px); transform: scaleY(-1); }
   .hud-corner.br { bottom: 34px; right: calc(50% - 150px); transform: scale(-1); }
 
-  .orb { width: 190px; height: 190px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+  .orb { width: 190px; height: 190px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; cursor: pointer; }
   .orb-spin-ring { position: absolute; inset: 0; animation: spinSlow 22s linear infinite; }
   .orb-spin-ring.reverse { inset: 14px; animation: spinSlowReverse 16s linear infinite; }
   @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -82,12 +79,17 @@
   .orb-ring.r3 { inset: 58px; animation-delay: 1s; }
   @keyframes orbPulse { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.25); opacity: 0; } }
 
-  .orb-core { width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFEB80, var(--accent) 70%); box-shadow: 0 0 40px rgba(255,214,0,0.55), 0 0 90px rgba(255,214,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #1A1600; animation: coreBreathe 3s ease-in-out infinite; z-index: 2; }
+  .orb-core { width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFEB80, var(--accent) 70%); box-shadow: 0 0 40px rgba(255,214,0,0.55), 0 0 90px rgba(255,214,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #1A1600; animation: coreBreathe 3s ease-in-out infinite; z-index: 2; transition: box-shadow 0.2s ease; }
   @keyframes coreBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .orb-core.listening { animation: coreListening 1s ease-in-out infinite; box-shadow: 0 0 50px rgba(255,214,0,0.85), 0 0 110px rgba(255,214,0,0.5); }
+  @keyframes coreListening { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  .orb-core.speaking { box-shadow: 0 0 55px rgba(74,158,255,0.7), 0 0 110px rgba(74,158,255,0.4); }
 
-  .orb-status { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 22px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.6px; }
+  .orb-status { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.6px; }
   .orb-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: flicker 2.2s infinite; }
   @keyframes flicker { 0%, 100% { opacity: 1; } 45% { opacity: 1; } 50% { opacity: 0.3; } 55% { opacity: 1; } }
+
+  .voice-hint { font-size: 0.72rem; color: var(--text-muted); opacity: 0.6; margin-bottom: 18px; }
 
   .hub-chat { max-width: 620px; margin: 0 auto 28px; }
   .hub-log { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; padding-right: 4px; }
@@ -100,7 +102,6 @@
   .hub-input-row button { width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--accent); color: #1A1600; font-size: 18px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   .hub-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* KARTY MODUŁÓW NA HUBIE */
   .widget-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 12px; }
   .widget-card {
     background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--card-color);
@@ -122,7 +123,6 @@
   .widget-card[data-mod="przepisy"] { --card-color: var(--c-blue); }
   .widget-card[data-mod="maile"] { --card-color: var(--c-green); }
 
-  /* WIDOK MODUŁU */
   #moduleView { display: none; }
   .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-bottom: 20px; padding: 8px 4px; }
   .back-btn:hover { color: var(--text); }
@@ -176,7 +176,7 @@
       <p>Zaloguj się, żeby uzyskać dostęp do narzędzi Sparka</p>
       <input type="email" id="emailInput" placeholder="Email">
       <input type="password" id="haslInput" placeholder="Hasło">
-      <button onclick="zaloguj()">Zaloguj się</button>
+      <button id="loginBtn" onclick="zaloguj()">Zaloguj się</button>
       <div class="login-error" id="loginError"></div>
     </div>
   </div>
@@ -196,7 +196,6 @@
 
     <div class="main-area">
 
-      <!-- HUB -->
       <div id="hubView">
         <div class="orb-frame">
           <div class="hud-corner tl"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
@@ -204,7 +203,7 @@
           <div class="hud-corner bl"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
           <div class="hud-corner br"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
 
-          <div class="orb">
+          <div class="orb" id="orbBtn" onclick="kliknijOrb()">
             <svg class="orb-spin-ring" viewBox="0 0 190 190">
               <circle cx="95" cy="95" r="92" fill="none" stroke="#FFD600" stroke-width="1" stroke-dasharray="2 6" opacity="0.5"/>
             </svg>
@@ -215,9 +214,10 @@
             <div class="orb-ring r1"></div>
             <div class="orb-ring r2"></div>
             <div class="orb-ring r3"></div>
-            <div class="orb-core">S</div>
+            <div class="orb-core" id="orbCore">S</div>
           </div>
           <div class="orb-status mono"><span class="dot"></span> <span id="hubStatusText">SPARK NEURAL LINK — GOTOWY DO PRACY</span></div>
+          <div class="voice-hint">Kliknij kulę, żeby mówić do Sparka</div>
         </div>
 
         <div class="hub-chat">
@@ -252,7 +252,6 @@
         </div>
       </div>
 
-      <!-- WIDOK MODUŁU -->
       <div id="moduleView">
         <div class="back-btn" onclick="powrotDoHuba()">← Powrót do huba</div>
 
@@ -376,7 +375,142 @@ const API_URL = "https://spark-api-pspro.onrender.com";
 let zalogowanyPracownik = null;
 let hubHistoria = [];
 
+// ====== SYNTEZA MOWY (z odblokowaniem pod iOS) ======
+let glosyZaladowane = false;
+let dostepneGlosy = [];
+
+function zaladujGlosy() {
+  dostepneGlosy = window.speechSynthesis.getVoices();
+  if (dostepneGlosy.length > 0) glosyZaladowane = true;
+}
+if (window.speechSynthesis) {
+  zaladujGlosy();
+  window.speechSynthesis.onvoiceschanged = zaladujGlosy;
+}
+
+function odblokujAudio() {
+  if (window.speechSynthesis) {
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(' '));
+  }
+}
+
+function mow(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const orbCore = document.getElementById('orbCore');
+
+  const probuj = () => {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'pl-PL';
+    utter.rate = 1.0;
+    const glosPl = dostepneGlosy.find(g => g.lang.startsWith('pl'));
+    if (glosPl) utter.voice = glosPl;
+
+    utter.onstart = () => { orbCore.classList.add('speaking'); };
+    utter.onend = () => { orbCore.classList.remove('speaking'); };
+
+    window.speechSynthesis.speak(utter);
+  };
+
+  if (glosyZaladowane) probuj();
+  else setTimeout(probuj, 300);
+}
+
+// ====== ROZPOZNAWANIE MOWY ======
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let sluchanie = false;
+let przetworzoneGlos = false;
+let ostatniTekstGlos = '';
+let timerCiszyGlos = null;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'pl-PL';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    sluchanie = true;
+    document.getElementById('orbCore').classList.add('listening');
+    document.getElementById('hubStatusText').textContent = "SŁUCHAM...";
+  };
+
+  recognition.onend = () => {
+    sluchanie = false;
+    document.getElementById('orbCore').classList.remove('listening');
+    if (timerCiszyGlos) clearTimeout(timerCiszyGlos);
+    if (!przetworzoneGlos && ostatniTekstGlos.trim()) {
+      przetworzoneGlos = true;
+      obsluzWiadomoscGlosowa(ostatniTekstGlos.trim());
+    } else {
+      document.getElementById('hubStatusText').textContent = "SPARK NEURAL LINK — GOTOWY DO PRACY";
+    }
+  };
+
+  recognition.onresult = (event) => {
+    let finalText = '', interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      else interim += event.results[i][0].transcript;
+    }
+    if (finalText || interim) ostatniTekstGlos = finalText || interim;
+
+    if (timerCiszyGlos) clearTimeout(timerCiszyGlos);
+    timerCiszyGlos = setTimeout(() => { if (!przetworzoneGlos) recognition.stop(); }, 1500);
+
+    if (finalText && !przetworzoneGlos) {
+      przetworzoneGlos = true;
+      recognition.stop();
+      obsluzWiadomoscGlosowa(finalText);
+    }
+  };
+}
+
+function kliknijOrb() {
+  if (!SpeechRecognition) {
+    alert("Twoja przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome lub Safari.");
+    return;
+  }
+  if (sluchanie) return;
+  odblokujAudio();
+  przetworzoneGlos = false;
+  ostatniTekstGlos = '';
+  try { recognition.start(); } catch (e) {}
+}
+
+async function obsluzWiadomoscGlosowa(tekst) {
+  dodajBankeHub(tekst, 'user');
+  document.getElementById('hubStatusText').textContent = "PRZETWARZANIE ZAPYTANIA...";
+
+  try {
+    const response = await fetch(API_URL + "/chat-hub", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: zalogowanyPracownik.email,
+        haslo: zalogowanyPracownik.haslo,
+        wiadomosc: tekst,
+        historia: hubHistoria
+      })
+    });
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+    const data = await response.json();
+    dodajBankeHub(data.odpowiedz, 'bot');
+    hubHistoria.push({ role: "user", content: tekst });
+    hubHistoria.push({ role: "assistant", content: data.odpowiedz });
+    mow(data.odpowiedz);
+  } catch (err) {
+    dodajBankeHub("Nie udało się połączyć: " + err.message, 'bot');
+  } finally {
+    document.getElementById('hubStatusText').textContent = "SPARK NEURAL LINK — GOTOWY DO PRACY";
+  }
+}
+
+// ====== LOGOWANIE ======
 async function zaloguj() {
+  odblokujAudio();
+
   const email = document.getElementById('emailInput').value;
   const haslo = document.getElementById('haslInput').value;
   const errorEl = document.getElementById('loginError');
@@ -409,6 +543,10 @@ async function zaloguj() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
 
+    const powitanie = `Witaj ${dane.imie}. Jestem Spark, Twój asystent AI. W czym mogę pomóc?`;
+    dodajBankeHub(powitanie, 'bot');
+    setTimeout(() => mow(powitanie), 400);
+
   } catch (err) {
     errorEl.textContent = "Błąd połączenia: " + err.message + " (jeśli API 'spało', spróbuj ponownie za chwilę)";
   }
@@ -423,10 +561,7 @@ function wejdzDoModulu(nazwa) {
   document.getElementById('moduleView').style.display = 'block';
   document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
   document.getElementById('module-' + nazwa).classList.add('active');
-
-  if (nazwa === 'przepisy') {
-    wczytajRaportyPrzepisow();
-  }
+  if (nazwa === 'przepisy') wczytajRaportyPrzepisow();
 }
 
 function powrotDoHuba() {
@@ -466,14 +601,12 @@ async function wyslijDoHuba() {
         historia: hubHistoria
       })
     });
-
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
-
     const data = await response.json();
     dodajBankeHub(data.odpowiedz, 'bot');
     hubHistoria.push({ role: "user", content: wiadomosc });
     hubHistoria.push({ role: "assistant", content: data.odpowiedz });
-
+    mow(data.odpowiedz);
   } catch (err) {
     dodajBankeHub("Nie udało się połączyć: " + err.message, 'bot');
   } finally {
@@ -523,13 +656,10 @@ async function generujOpisSwiadectwa() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dane)
     });
-
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
-
     const data = await response.json();
     document.getElementById('swResultText').value = data.opis;
     document.getElementById('swResultCard').style.display = 'block';
-
   } catch (err) {
     errorEl.textContent = "Nie udało się wygenerować opisu: " + err.message;
   } finally {
@@ -567,13 +697,10 @@ async function generujMail() {
         ton: ton
       })
     });
-
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
-
     const data = await response.json();
     document.getElementById('mlResultText').value = data.tresc;
     document.getElementById('mlResultCard').style.display = 'block';
-
   } catch (err) {
     errorEl.textContent = "Nie udało się wygenerować maila: " + err.message;
   } finally {
@@ -601,13 +728,10 @@ async function uruchomSprawdzeniePrzepisow() {
         haslo: zalogowanyPracownik.haslo
       })
     });
-
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
-
     const data = await response.json();
     successEl.textContent = "✓ " + data.wiadomosc;
     successEl.style.display = 'block';
-
   } catch (err) {
     errorEl.textContent = "Nie udało się uruchomić sprawdzania: " + err.message;
   } finally {
@@ -623,7 +747,6 @@ async function wczytajRaportyPrzepisow() {
   try {
     const response = await fetch(API_URL + "/przepisy-raporty");
     if (!response.ok) throw new Error("Błąd serwera: " + response.status);
-
     const data = await response.json();
 
     if (!data.raporty || data.raporty.length === 0) {
@@ -643,7 +766,6 @@ async function wczytajRaportyPrzepisow() {
         </div>
       `;
     }).join('');
-
   } catch (err) {
     lista.innerHTML = `<p class="error-msg">Nie udało się wczytać raportów: ${err.message}</p>`;
   }
