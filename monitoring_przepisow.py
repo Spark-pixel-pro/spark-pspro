@@ -1,6 +1,7 @@
 import os
 import time
 from groq import Groq
+from supabase import create_client
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -19,8 +20,13 @@ GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GMAIL_EMAIL = os.environ["GMAIL_EMAIL"]
 GMAIL_HASLO = os.environ["GMAIL_HASLO"]
 FIRMA_NAZWA = os.environ["FIRMA_NAZWA"]
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
 groq_client = Groq(api_key=GROQ_API_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+STORAGE_BUCKET = "raporty-przepisow"
 
 # ====== FONT Z OBSŁUGĄ POLSKICH ZNAKÓW ======
 FONT_NORMAL = "Helvetica"
@@ -182,13 +188,35 @@ def wygeneruj_pdf(wyniki, sciezka_pliku):
     doc.build(elementy)
 
 
+def zapisz_do_supabase(wyniki, sciezka_pdf):
+    nazwa_pliku = f"raport-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}.pdf"
+
+    with open(sciezka_pdf, "rb") as f:
+        supabase.storage.from_(STORAGE_BUCKET).upload(
+            nazwa_pliku, f.read(), {"content-type": "application/pdf"}
+        )
+
+    pdf_url = supabase.storage.from_(STORAGE_BUCKET).get_public_url(nazwa_pliku)
+
+    tresc_skrocona = ""
+    for temat, wynik, praktyczne in wyniki:
+        tresc_skrocona += f"{temat}: {wynik[:150]}...\n\n"
+
+    supabase.table("raporty_przepisow").insert({
+        "pdf_url": pdf_url,
+        "tresc_skrocona": tresc_skrocona[:2000]
+    }).execute()
+
+    return pdf_url
+
+
 def wyslij_podsumowanie(wyniki, sciezka_pdf):
     msg = MIMEMultipart()
     msg["From"] = GMAIL_EMAIL
     msg["To"] = GMAIL_EMAIL
     msg["Subject"] = f"⚖️ Monitoring przepisów — {FIRMA_NAZWA} — {datetime.now().strftime('%d.%m.%Y')}"
 
-    tresc = f"Comiesięczne sprawdzenie aktualności przepisów dla {FIRMA_NAZWA}.\n\nPełny raport z praktyczną interpretacją w załączonym pliku PDF.\n\n"
+    tresc = f"Sprawdzenie aktualności przepisów dla {FIRMA_NAZWA}.\n\nPełny raport z praktyczną interpretacją w załączonym pliku PDF (dostępny też w Panelu Pracownika).\n\n"
     for temat, wynik, praktyczne in wyniki:
         tresc += f"{'='*50}\n{temat}\n{'='*50}\n{wynik}\n\n"
         if praktyczne:
@@ -245,6 +273,9 @@ if __name__ == "__main__":
     sciezka_pdf = "monitoring-przepisow.pdf"
     wygeneruj_pdf(wyniki, sciezka_pdf)
     print("PDF wygenerowany!")
+
+    zapisz_do_supabase(wyniki, sciezka_pdf)
+    print("Raport zapisany w Supabase!")
 
     wyslij_podsumowanie(wyniki, sciezka_pdf)
     print("Podsumowanie z załącznikiem PDF wysłane mailem!")
