@@ -18,7 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: Zainstaluj zależności
-        run: pip install groq reportlab
+        run: pip install groq reportlab supabase
 
       - name: Uruchom monitoring przepisów
         env:
@@ -26,4 +26,6 @@ jobs:
           GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
           GMAIL_HASLO: ${{ secrets.GMAIL_HASLO }}
           FIRMA_NAZWA: ${{ secrets.FIRMA_NAZWA }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python monitoring_przepisow.py
