@@ -284,3 +284,56 @@ def get_przepisy_raporty():
     response = supabase.table("raporty_przepisow").select("*").order("data_utworzenia", desc=True).limit(10).execute()
     dane = response.data or []
     return {"raporty": dane}
+
+# ====== CENTRALNY CZAT (HUB) ======
+class DaneChatuHub(BaseModel):
+    email: str
+    haslo: str
+    wiadomosc: str
+    historia: list = []
+
+
+def vector_search_wiedza(pytanie, match_count=5):
+    try:
+        wektor = get_query_embedding(pytanie)
+        response = supabase.rpc(
+            "match_wiedza", {"query_embedding": wektor, "match_count": match_count}
+        ).execute()
+        return response.data or []
+    except Exception:
+        return []
+
+
+@app.post("/chat-hub")
+def chat_hub(dane: DaneChatuHub):
+    pracownik = zweryfikuj_pracownika(dane.email, dane.haslo)
+    if not pracownik:
+        raise HTTPException(status_code=403, detail="Nieprawidłowy email lub hasło")
+
+    fragmenty = vector_search_wiedza(dane.wiadomosc, match_count=5)
+    kontekst = ""
+    if fragmenty:
+        kontekst = "\n\n---\n\n".join([f"[Źródło: {f['zrodlo']}]\n{f['fragment'][:600]}" for f in fragmenty])
+
+    system_prompt = f"""Jesteś Spark, centralnym asystentem AI firmy {FIRMA_NAZWA}, rozmawiasz z pracownikiem {pracownik['imie']} {pracownik['nazwisko']}.
+
+Zasady:
+- Jeśli pytanie dotyczy firmowej wiedzy (procedury, przepisy, przykłady) — odpowiadaj na podstawie dostarczonego kontekstu, podając źródło
+- Jeśli nie masz odpowiedzi w kontekście, powiedz to szczerze, nie zmyślaj
+- Możesz też pomóc ogólnie (np. podpowiedzieć z którego modułu skorzystać: Świadectwa, Przepisy, Maile, Onboarding)
+- Odpowiadaj krótko, konkretnie, po polsku, tonem pomocnego kolegi z pracy"""
+
+    wiadomosc_z_kontekstem = dane.wiadomosc
+    if kontekst:
+        wiadomosc_z_kontekstem = f"Kontekst z bazy wiedzy firmy:\n\n{kontekst}\n\n---\n\nPytanie: {dane.wiadomosc}"
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for h in dane.historia[-6:]:
+        messages.append(h)
+    messages.append({"role": "user", "content": wiadomosc_z_kontekstem})
+
+    completion = groq_client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=messages
+    )
+    return {"odpowiedz": completion.choices[0].message.content}
