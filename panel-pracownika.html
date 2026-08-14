@@ -196,15 +196,18 @@
         </div>
 
         <div class="module" id="module-przepisy">
-          <div class="form-card" style="text-align:center; padding:40px 24px;">
+          <div class="form-card" style="text-align:center; padding:32px 24px;">
             <p style="color:var(--text-muted); margin-bottom:20px;">
               Monitoring przepisów budowlanych i świadectw energetycznych uruchamia się automatycznie raz w miesiącu.<br>
-              Możesz też sprawdzić na żądanie — wynik przyjdzie mailem za kilka minut.
+              Możesz też sprawdzić na żądanie — nowy raport pojawi się poniżej za kilka minut.
             </p>
             <button class="generate-btn" id="przGenerateBtn" onclick="uruchomSprawdzeniePrzepisow()">🔍 Sprawdź teraz</button>
             <div class="error-msg" id="przErrorMsg"></div>
             <div id="przSuccessMsg" style="display:none; color:#4ADE80; font-size:0.88rem; margin-top:14px;"></div>
           </div>
+
+          <div class="section-label">Ostatnie raporty</div>
+          <div id="przRaportyLista"></div>
         </div>
 
         <div class="module" id="module-maile">
@@ -292,6 +295,10 @@ function przelaczModul(nazwa) {
   document.querySelector(`[data-module="${nazwa}"]`).classList.add('active');
   document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
   document.getElementById('module-' + nazwa).classList.add('active');
+
+  if (nazwa === 'przepisy') {
+    wczytajRaportyPrzepisow();
+  }
 }
 
 async function generujOpisSwiadectwa() {
@@ -421,6 +428,39 @@ async function uruchomSprawdzeniePrzepisow() {
   } finally {
     btn.disabled = false;
     btn.textContent = "🔍 Sprawdź teraz";
+  }
+}
+
+async function wczytajRaportyPrzepisow() {
+  const lista = document.getElementById('przRaportyLista');
+  lista.innerHTML = '<p class="placeholder">Wczytuję raporty...</p>';
+
+  try {
+    const response = await fetch(API_URL + "/przepisy-raporty");
+    if (!response.ok) throw new Error("Błąd serwera: " + response.status);
+
+    const data = await response.json();
+
+    if (!data.raporty || data.raporty.length === 0) {
+      lista.innerHTML = '<p class="placeholder">Brak jeszcze zapisanych raportów.</p>';
+      return;
+    }
+
+    lista.innerHTML = data.raporty.map(r => {
+      const data_pl = new Date(r.data_utworzenia).toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', year: 'numeric' });
+      return `
+        <div class="form-card" style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <strong style="font-size:0.92rem;">📄 Raport z ${data_pl}</strong>
+            <a href="${r.pdf_url}" target="_blank" style="color:var(--accent); font-size:0.85rem; font-weight:600; text-decoration:none;">Pobierz PDF ↓</a>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.82rem; white-space:pre-line;">${(r.tresc_skrocona || '').slice(0, 300)}...</p>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    lista.innerHTML = `<p class="error-msg">Nie udało się wczytać raportów: ${err.message}</p>`;
   }
 }
 </script>
