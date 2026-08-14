@@ -22,6 +22,7 @@
       linear-gradient(90deg, rgba(255,214,0,0.025) 1px, transparent 1px);
     background-size: 44px 44px;
   }
+  .mono { font-family: 'SF Mono', 'Courier New', monospace; }
 
   /* LOGOWANIE */
   #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; z-index: 1; }
@@ -43,7 +44,7 @@
   .topbar-left { display: flex; align-items: center; gap: 12px; }
   .badge-small { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 0 18px rgba(255,214,0,0.4); }
   .topbar .title { font-weight: 800; font-size: 1rem; letter-spacing: -0.3px; }
-  .status-pill { display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 600; color: var(--c-green); letter-spacing: 1px; text-transform: uppercase; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); padding: 5px 12px; border-radius: 20px; }
+  .status-pill { display: flex; align-items: center; gap: 7px; font-size: 0.7rem; font-weight: 600; color: var(--c-green); letter-spacing: 1.5px; text-transform: uppercase; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); padding: 5px 12px; border-radius: 20px; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); animation: dotPulse 1.6s infinite; }
   @keyframes dotPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(74,222,128,0); } }
   .user-info { font-size: 0.83rem; color: var(--text-muted); text-align: right; }
@@ -51,19 +52,42 @@
 
   .main-area { max-width: 1000px; margin: 0 auto; padding: 20px 32px 60px; }
 
-  /* HUB — ORB */
+  /* HUB — ORB Z HUD */
   #hubView { display: block; }
-  .orb-wrap { display: flex; flex-direction: column; align-items: center; padding: 44px 20px 8px; }
-  .orb { width: 168px; height: 168px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+  .orb-frame { position: relative; display: flex; flex-direction: column; align-items: center; padding: 50px 20px 8px; }
+
+  .hud-corner { position: absolute; width: 34px; height: 34px; opacity: 0.55; }
+  .hud-corner svg { width: 100%; height: 100%; }
+  .hud-corner.tl { top: 8px; left: calc(50% - 150px); }
+  .hud-corner.tr { top: 8px; right: calc(50% - 150px); transform: scaleX(-1); }
+  .hud-corner.bl { bottom: 34px; left: calc(50% - 150px); transform: scaleY(-1); }
+  .hud-corner.br { bottom: 34px; right: calc(50% - 150px); transform: scale(-1); }
+
+  .orb { width: 190px; height: 190px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+  .orb-spin-ring { position: absolute; inset: 0; animation: spinSlow 22s linear infinite; }
+  .orb-spin-ring.reverse { inset: 14px; animation: spinSlowReverse 16s linear infinite; }
+  @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spinSlowReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+
+  .radar-sweep { position: absolute; inset: 30px; border-radius: 50%; overflow: hidden; }
+  .radar-sweep::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,214,0,0.35), transparent 30%, transparent 100%);
+    animation: spinSlow 3.2s linear infinite;
+  }
+
   .orb-ring { position: absolute; border-radius: 50%; border: 1.5px solid rgba(255,214,0,0.35); animation: orbPulse 2.6s ease-out infinite; }
-  .orb-ring.r1 { inset: 0; animation-delay: 0s; }
-  .orb-ring.r2 { inset: 18px; animation-delay: 0.5s; }
-  .orb-ring.r3 { inset: 36px; animation-delay: 1s; }
+  .orb-ring.r1 { inset: 22px; animation-delay: 0s; }
+  .orb-ring.r2 { inset: 40px; animation-delay: 0.5s; }
+  .orb-ring.r3 { inset: 58px; animation-delay: 1s; }
   @keyframes orbPulse { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.25); opacity: 0; } }
-  .orb-core { width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFEB80, var(--accent) 70%); box-shadow: 0 0 40px rgba(255,214,0,0.55), 0 0 80px rgba(255,214,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #1A1600; animation: coreBreathe 3s ease-in-out infinite; z-index: 2; }
-  @keyframes coreBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-  .orb-status { font-size: 0.86rem; color: var(--text-muted); margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
-  .orb-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: dotPulse 1.6s infinite; }
+
+  .orb-core { width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFEB80, var(--accent) 70%); box-shadow: 0 0 40px rgba(255,214,0,0.55), 0 0 90px rgba(255,214,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #1A1600; animation: coreBreathe 3s ease-in-out infinite; z-index: 2; }
+  @keyframes coreBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+  .orb-status { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 22px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.6px; }
+  .orb-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: flicker 2.2s infinite; }
+  @keyframes flicker { 0%, 100% { opacity: 1; } 45% { opacity: 1; } 50% { opacity: 0.3; } 55% { opacity: 1; } }
 
   .hub-chat { max-width: 620px; margin: 0 auto 28px; }
   .hub-log { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; padding-right: 4px; }
@@ -81,8 +105,15 @@
   .widget-card {
     background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--card-color);
     border-radius: 14px; padding: 20px 18px; cursor: pointer; transition: transform 0.18s ease, border-color 0.18s ease;
+    position: relative; overflow: hidden;
   }
+  .widget-card::before, .widget-card::after {
+    content: ""; position: absolute; width: 14px; height: 14px; border-color: var(--card-color); opacity: 0; transition: opacity 0.2s ease;
+  }
+  .widget-card::before { top: 6px; left: 6px; border-top: 2px solid; border-left: 2px solid; }
+  .widget-card::after { bottom: 6px; right: 6px; border-bottom: 2px solid; border-right: 2px solid; }
   .widget-card:hover { transform: translateY(-4px); border-color: var(--card-color); }
+  .widget-card:hover::before, .widget-card:hover::after { opacity: 1; }
   .widget-card .w-num { font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px; color: var(--card-color); margin-bottom: 10px; }
   .widget-card .w-title { font-size: 0.98rem; font-weight: 700; margin-bottom: 6px; }
   .widget-card .w-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
@@ -131,6 +162,7 @@
     .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
     .main-area { padding: 16px 18px 40px; }
     .module-headline { font-size: 1.5rem; }
+    .hud-corner { display: none; }
   }
 </style>
 </head>
@@ -139,7 +171,7 @@
   <div id="loginScreen">
     <div class="login-box">
       <div class="badge">S</div>
-      <div class="eyebrow">System Spark</div>
+      <div class="eyebrow mono">System Spark</div>
       <h1>Panel Pracownika</h1>
       <p>Zaloguj się, żeby uzyskać dostęp do narzędzi Sparka</p>
       <input type="email" id="emailInput" placeholder="Email">
@@ -155,7 +187,7 @@
         <div class="badge-small">S</div>
         <div class="title">Panel Pracownika</div>
       </div>
-      <div class="status-pill"><span class="status-dot"></span> System online</div>
+      <div class="status-pill mono"><span class="status-dot"></span> System Online</div>
       <div class="user-info">
         <div class="name" id="userName"></div>
         <div id="userStanowisko"></div>
@@ -166,14 +198,26 @@
 
       <!-- HUB -->
       <div id="hubView">
-        <div class="orb-wrap">
+        <div class="orb-frame">
+          <div class="hud-corner tl"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
+          <div class="hud-corner tr"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
+          <div class="hud-corner bl"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
+          <div class="hud-corner br"><svg viewBox="0 0 34 34"><path d="M2 34 L2 8 Q2 2 8 2 L34 2" fill="none" stroke="#FFD600" stroke-width="2"/></svg></div>
+
           <div class="orb">
+            <svg class="orb-spin-ring" viewBox="0 0 190 190">
+              <circle cx="95" cy="95" r="92" fill="none" stroke="#FFD600" stroke-width="1" stroke-dasharray="2 6" opacity="0.5"/>
+            </svg>
+            <svg class="orb-spin-ring reverse" viewBox="0 0 162 162">
+              <circle cx="81" cy="81" r="78" fill="none" stroke="#4A9EFF" stroke-width="1" stroke-dasharray="1 10" opacity="0.4"/>
+            </svg>
+            <div class="radar-sweep"></div>
             <div class="orb-ring r1"></div>
             <div class="orb-ring r2"></div>
             <div class="orb-ring r3"></div>
             <div class="orb-core">S</div>
           </div>
-          <div class="orb-status"><span class="dot"></span> <span id="hubStatusText">Zapytaj Sparka o cokolwiek...</span></div>
+          <div class="orb-status mono"><span class="dot"></span> <span id="hubStatusText">SPARK NEURAL LINK — GOTOWY DO PRACY</span></div>
         </div>
 
         <div class="hub-chat">
@@ -186,22 +230,22 @@
 
         <div class="widget-grid">
           <div class="widget-card" data-mod="swiadectwa" onclick="wejdzDoModulu('swiadectwa')">
-            <div class="w-num">01</div>
+            <div class="w-num mono">01</div>
             <div class="w-title">📄 Świadectwa</div>
             <div class="w-desc">Opisy dla klientów na podstawie obliczonych wskaźników energetycznych.</div>
           </div>
           <div class="widget-card" data-mod="onboarding" onclick="wejdzDoModulu('onboarding')">
-            <div class="w-num">02</div>
+            <div class="w-num mono">02</div>
             <div class="w-title">📚 Onboarding</div>
             <div class="w-desc">Wdrożenie nowych pracowników — moduł w budowie.</div>
           </div>
           <div class="widget-card" data-mod="przepisy" onclick="wejdzDoModulu('przepisy')">
-            <div class="w-num">03</div>
+            <div class="w-num mono">03</div>
             <div class="w-title">⚖️ Przepisy</div>
             <div class="w-desc">Monitoring zmian w prawie budowlanym i energetycznym.</div>
           </div>
           <div class="widget-card" data-mod="maile" onclick="wejdzDoModulu('maile')">
-            <div class="w-num">04</div>
+            <div class="w-num mono">04</div>
             <div class="w-title">✉️ Maile</div>
             <div class="w-desc">Gotowe wiadomości do klientów, dopasowane do sytuacji.</div>
           </div>
@@ -409,7 +453,7 @@ async function wyslijDoHuba() {
   dodajBankeHub(wiadomosc, 'user');
   input.value = '';
   btn.disabled = true;
-  statusText.textContent = "Myślę...";
+  statusText.textContent = "PRZETWARZANIE ZAPYTANIA...";
 
   try {
     const response = await fetch(API_URL + "/chat-hub", {
@@ -434,7 +478,7 @@ async function wyslijDoHuba() {
     dodajBankeHub("Nie udało się połączyć: " + err.message, 'bot');
   } finally {
     btn.disabled = false;
-    statusText.textContent = "Zapytaj Sparka o cokolwiek...";
+    statusText.textContent = "SPARK NEURAL LINK — GOTOWY DO PRACY";
   }
 }
 
